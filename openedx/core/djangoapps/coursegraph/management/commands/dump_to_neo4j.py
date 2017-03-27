@@ -125,6 +125,7 @@ class ModuleStoreSerializer(object):
         # create relationships
         relationships = []
         for item in items:
+            previous_child_node = None
             for index, child_loc in enumerate(item.get_children()):
                 parent_node = location_to_node.get(item.location)
                 child_node = location_to_node.get(child_loc.location)
@@ -132,6 +133,13 @@ class ModuleStoreSerializer(object):
                 if parent_node is not None and child_node is not None:
                     relationship = Relationship(parent_node, "PARENT_OF", child_node)
                     relationships.append(relationship)
+
+                    if previous_child_node:
+                        ordering_relationship = Relationship(
+                            previous_child_node, "PRECEDES", child_node
+                        )
+                        relationships.append(ordering_relationship)
+                    previous_child_node = child_node
 
         nodes = location_to_node.values()
         return nodes, relationships
