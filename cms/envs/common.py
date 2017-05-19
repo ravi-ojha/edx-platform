@@ -1306,3 +1306,19 @@ COURSE_CATALOG_API_URL = None
 ###################### VIDEO IMAGE STORAGE ######################
 
 VIDEO_IMAGE_DEFAULT_FILENAME = 'images/video-images/default_video_image.png'
+VIDEO_IMAGE_SUPPORTED_FILE_FORMATS = {
+    '.png': 'image/png',
+    '.gif': 'image/gif',
+    '.bmp': 'image/bmp',
+    '.bmp2': 'image/x-ms-bmp',   # PIL gives x-ms-bmp format
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+}
+VIDEO_IMAGE_MAX_FILE_SIZE_MB = 2
+VIDEO_IMAGE_MAX_WIDTH = 1280
+VIDEO_IMAGE_MAX_HEIGHT = 720
+VIDEO_IMAGE_MIN_WIDTH = 640
+VIDEO_IMAGE_MIN_HEIGHT = 360
+VIDEO_IMAGE_ASPECT_RATIO = 16/9.0
+VIDEO_IMAGE_ASPECT_RATIO_TEXT = '16:9'
+VIDEO_IMAGE_ASPECT_RATIO_ERROR_MARGIN = 0.1
