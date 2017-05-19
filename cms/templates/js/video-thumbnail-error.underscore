@@ -1,0 +1,12 @@
+<td colspan="6" class="thumbnail-error-wrapper">
+    <table>
+        <tbody>
+            <tr><td class="thumbnail-error" colspan="6">
+                <span class="action-icon" aria-hidden="true"><%= icon %></span>
+                <span class="action-text-sr sr"></span>
+                <span class="action-text"><%- error %></span>
+            </td></tr>
+            <tr><%= orignalParentHTML %></tr>
+        </tbody>
+    </table>
+</td>

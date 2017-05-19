@@ -1,40 +1,13 @@
 define(
     ['underscore', 'gettext', 'moment', 'js/utils/date_utils', 'js/views/baseview',
         'common/js/components/utils/view_utils', 'edx-ui-toolkit/js/utils/html-utils',
-        'edx-ui-toolkit/js/utils/string-utils', 'text!templates/video-thumbnail.underscore'],
-    function(_, gettext, moment, DateUtils, BaseView, ViewUtils, HtmlUtils, StringUtils, VideoThumbnailTemplate) {
+        'edx-ui-toolkit/js/utils/string-utils', 'text!templates/video-thumbnail.underscore',
+        'text!templates/video-thumbnail-error.underscore'],
+    function(_, gettext, moment, DateUtils, BaseView, ViewUtils, HtmlUtils, StringUtils, VideoThumbnailTemplate,
+                VideoThumbnailErrorTemplate) {
         'use strict';
 
         var VideoThumbnailView = BaseView.extend({
-
-            actionsInfo: {
-                upload: {
-                    icon: '',
-                    text: gettext('Add Thumbnail')
-                },
-                edit: {
-                    icon: '<span class="icon fa fa-pencil" aria-hidden="true"></span>',
-                    text: gettext('Edit Thumbnail')
-                },
-                error: {
-                    icon: '<span class="icon fa fa-exclamation-triangle" aria-hidden="true"></span>',
-                    text: gettext('Image upload failed')
-                },
-                progress: {
-                    icon: '<span class="icon fa fa-spinner fa-pulse fa-spin" aria-hidden="true"></span>',
-                    text: gettext('Uploading')
-                },
-                requirements: {
-                    icon: '',
-                    text: HtmlUtils.interpolateHtml(
-                        // Translators: This is a 3 part text which tells the image requirements.
-                        gettext('Image requirements: {lineBreak} 1280px by 720px {lineBreak} .jpg, .png, or .gif'),
-                        {
-                            lineBreak: HtmlUtils.HTML('<br>')
-                        }
-                    ).toString()
-                }
-            },
 
             events: {
                 'click .thumbnail-wrapper': 'chooseFile',
@@ -46,9 +19,46 @@ define(
 
             initialize: function(options) {
                 this.template = HtmlUtils.template(VideoThumbnailTemplate);
+                this.errorTemplate = HtmlUtils.template(VideoThumbnailErrorTemplate);
                 this.imageUploadURL = options.imageUploadURL;
                 this.defaultVideoImageURL = options.defaultVideoImageURL;
                 this.action = this.model.get('course_video_image_url') ? 'edit' : 'upload';
+                this.videoImageMaxSize = options.videoImageMaxSize;
+                this.videoImageMinSize = options.videoImageMinSize;
+                this.videoImageMaxWidth = options.videoImageMaxWidth;
+                this.videoImageMaxHeight = options.videoImageMaxHeight;
+                this.videoImageSupportedFileFormats = options.videoImageSupportedFileFormats;
+                this.actionsInfo = {
+                    upload: {
+                        icon: '',
+                        text: gettext('Add Thumbnail')
+                    },
+                    edit: {
+                        icon: '<span class="icon fa fa-pencil" aria-hidden="true"></span>',
+                        text: gettext('Edit Thumbnail')
+                    },
+                    error: {
+                        icon: '<span class="icon fa fa-exclamation-triangle" aria-hidden="true"></span>',
+                        text: gettext('Image upload failed')
+                    },
+                    progress: {
+                        icon: '<span class="icon fa fa-spinner fa-pulse fa-spin" aria-hidden="true"></span>',
+                        text: gettext('Uploading')
+                    },
+                    requirements: {
+                        icon: '',
+                        text: HtmlUtils.interpolateHtml(
+                            // Translators: This is a 3 part text which tells the image requirements.
+                            gettext('Image requirements {lineBreak} {videoImageResoultion} {lineBreak} {videoImageSupportedFileFormats}'),
+                            {
+                                videoImageResoultion: this.getVideoImageResolution(),
+                                videoImageSupportedFileFormats: this.getVideoImageSupportedFileFormats(),
+                                lineBreak: HtmlUtils.HTML('<br>')
+                            }
+                        ).toString()
+                    }
+                },
+
                 _.bindAll(
                     this, 'render', 'chooseFile', 'imageSelected', 'imageUploadSucceeded', 'imageUploadFailed',
                     'showHoverState', 'hideHoverState'
@@ -64,11 +74,44 @@ define(
                         videoId: this.model.get('edx_video_id'),
                         actionInfo: this.actionsInfo[this.action],
                         thumbnailURL: this.model.get('course_video_image_url') || this.defaultVideoImageURL,
-                        duration: this.getDuration(this.model.get('duration'))
+                        duration: this.getDuration(this.model.get('duration')),
+                        videoImageSupportedFileFormats: this.getVideoImageSupportedFileFormats(),
+                        videoImageMaxSize: this.getVideoImageMaxSize(),
+                        videoImageResolution: this.getVideoImageResolution()
                     })
                 );
                 this.hideHoverState();
                 return this;
+            },
+
+            getVideoImageSupportedFileFormats: function() {
+                var supportedFormatsArray = this.videoImageSupportedFileFormats.sort();
+                return {
+                    humanize: supportedFormatsArray.slice(0, -1).join(', ') + ' or ' + supportedFormatsArray.slice(-1),
+                    machine: supportedFormatsArray
+                }
+            },
+
+            getVideoImageMaxSize: function() {
+                return {
+                    humanize: this.videoImageMaxSize/(1024*1024) + ' MB',
+                    machine: this.videoImageMaxSize
+                }
+            },
+
+            getVideoImageMinSize: function() {
+                return {
+                    humanize: this.videoImageMinSize/1024 + ' KB',
+                    machine: this.videoImageMinSize
+                }
+            },
+
+            getVideoImageResolution: function() {
+                return StringUtils.interpolate(
+                    // Translators: message will be like 1280x720 pixels
+                    gettext('{maxWidth}x{maxHeight} pixels'),
+                    {maxWidth: this.videoImageMaxWidth, maxHeight: this.videoImageMaxHeight}
+                );
             },
 
             getImageAltText: function() {
@@ -162,9 +205,15 @@ define(
             },
 
             imageSelected: function(event, data) {
-                this.readMessages([gettext('Video image upload started')]);
-                this.showUploadInProgressMessage();
-                data.submit();
+                var errorMessage = this.validateImageFile(data.files[0]);
+                if (!errorMessage) {
+                    data['global'] = false;   // Do not trigger global AJAX error handler
+                    this.readMessages([gettext('Video image upload started')]);
+                    this.showUploadInProgressMessage();
+                    data.submit();
+                } else {
+                    this.showErrorMessage(errorMessage);
+                }
             },
 
             imageUploadSucceeded: function(event, data) {
@@ -174,10 +223,23 @@ define(
                 this.readMessages([gettext('Video image upload completed')]);
             },
 
-            imageUploadFailed: function() {
+            imageUploadFailed: function(event, data) {
+                var errorText = JSON.parse(data.jqXHR.responseText)['error'];
                 this.action = 'error';
                 this.setActionInfo(this.action, true);
-                this.readMessages([gettext('Video image upload failed')]);
+                this.showErrorMessage(errorText);
+            },
+
+            showErrorMessage: function(errorText) {
+                this.readMessages([gettext('Video image upload failed'), errorText]);
+                HtmlUtils.setHtml(
+                    this.$el.parent(),
+                    this.errorTemplate({
+                        icon: this.actionsInfo['error'].icon,
+                        error: errorText,
+                        orignalParentHTML: this.$el.parent().html()
+                    })
+                );
             },
 
             showUploadInProgressMessage: function() {
@@ -214,6 +276,36 @@ define(
                 );
                 this.$('.thumbnail-action .action-text-sr').text(additionalSRText || '');
                 this.$('.thumbnail-wrapper').attr('class', 'thumbnail-wrapper {action}'.replace('{action}', action));
+            },
+
+            validateImageFile: function(imageFile) {
+                var errorMessage = '';
+                var self = this,
+                    fileName,
+                    fileType;
+
+                fileName = imageFile.name;
+                fileType = fileName.substr(fileName.lastIndexOf('.'));
+
+                if (!_.contains(self.getVideoImageSupportedFileFormats().machine, fileType)) {
+                    errorMessage = gettext(
+                        'The selected image contains unsupported image file type. ' +
+                        'Supported file formats are {supportedFileFormats}.'
+                    )
+                    .replace('{supportedFileFormats}', self.getVideoImageSupportedFileFormats().humanize);
+                } else if (imageFile.size > self.getVideoImageMaxSize().machine) {
+                    errorMessage = gettext(
+                        'The selected image must be smaller than {maxFileSizeInMB}.'
+                    )
+                    .replace('{maxFileSizeInMB}', self.getVideoImageMaxSize().humanize);
+                } else if (imageFile.size < self.getVideoImageMinSize().machine) {
+                    errorMessage = gettext(
+                        'The selected image must be larger than {minFileSizeInKB}.'
+                    )
+                    .replace('{minFileSizeInKB}', self.getVideoImageMinSize().humanize);
+                }
+
+                return errorMessage;
             },
 
             readMessages: function(messages) {
