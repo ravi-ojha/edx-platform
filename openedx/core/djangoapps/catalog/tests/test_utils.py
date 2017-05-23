@@ -197,7 +197,7 @@ class TestGetCourseRuns(CatalogIntegrationMixin, TestCase):
         for arg in (self.catalog_integration, 'course_runs'):
             self.assertIn(arg, args)
 
-        self.assertEqual(kwargs['api']._store['base_url'], self.catalog_integration.internal_api_url)  # pylint: disable=protected-access
+        self.assertEqual(kwargs['api']._store['base_url'], self.catalog_integration.get_internal_api_url())  # pylint: disable=protected-access
 
         querystring = {
             'page_size': 20,
