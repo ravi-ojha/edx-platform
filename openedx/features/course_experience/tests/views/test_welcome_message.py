@@ -27,6 +27,18 @@ def welcome_message_url(course):
     )
 
 
+def dismiss_message_url(course):
+    """
+    Returns the URL for the dismiss message endpoint.
+    """
+    return reverse(
+        'openedx.course_experience.dismiss_welcome_message',
+        kwargs={
+            'course_id': unicode(course.id),
+        }
+    )
+
+
 class TestWelcomeMessageView(SharedModuleStoreTestCase):
     """
     Tests for the course welcome message fragment view.
@@ -66,6 +78,7 @@ class TestWelcomeMessageView(SharedModuleStoreTestCase):
         response = self.client.get(welcome_message_url(self.course))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Second Update')
+        self.assertContains(response, 'Dismiss')
 
     def test_replace_urls(self):
         img_url = 'img.png'
@@ -80,3 +93,15 @@ class TestWelcomeMessageView(SharedModuleStoreTestCase):
     def test_empty_welcome_message(self):
         response = self.client.get(welcome_message_url(self.course))
         self.assertEqual(response.status_code, 204)
+
+    def test_dismiss_message(self):
+        create_course_update(self.course, self.user, 'First Update', date='January 1, 2017')
+
+        response = self.client.get(welcome_message_url(self.course))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'First Update')
+
+        self.client.post(dismiss_message_url(self.course))
+        response = self.client.get(welcome_message_url(self.course))
+        self.assertNotIn('First Update', response)
+        self.assertEqual(response.status_code, 200)
