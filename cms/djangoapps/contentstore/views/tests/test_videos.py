@@ -531,6 +531,7 @@ class VideosHandlerTestCase(VideoUploadTestMixin, CourseTestCase):
 
         self.assert_video_status(url, edx_video_id, 'Failed')
 
+
 @ddt.ddt
 @patch.dict('django.conf.settings.FEATURES', {'ENABLE_VIDEO_UPLOAD_PIPELINE': True})
 @override_settings(VIDEO_UPLOAD_PIPELINE={'BUCKET': 'test_bucket', 'ROOT_PATH': 'test_root'})
@@ -572,7 +573,6 @@ class VideoImageTestCase(VideoUploadTestBase, CourseTestCase):
         response = json.loads(response.content)
         self.assertIn('error', response)
         self.assertEqual(response['error'], error_message)
-
 
     def test_video_image(self):
         """
@@ -667,7 +667,7 @@ class VideoImageTestCase(VideoUploadTestBase, CourseTestCase):
             {
                 'size': settings.VIDEO_IMAGE_SETTINGS['VIDEO_IMAGE_MAX_BYTES'] + 10
             },
-            'The selected image must be smaller than {image_max_size} MB.'.format(
+            'The selected image must be smaller than {image_max_size}.'.format(
                 image_max_size=settings.VIDEO_IMAGE_MAX_FILE_SIZE_MB
             )
         ),
@@ -675,8 +675,8 @@ class VideoImageTestCase(VideoUploadTestBase, CourseTestCase):
             {
                 'size': settings.VIDEO_IMAGE_SETTINGS['VIDEO_IMAGE_MIN_BYTES'] - 10
             },
-            'The selected image must be larger than {image_min_size} bytes'.format(
-                image_min_size=settings.VIDEO_IMAGE_SETTINGS['VIDEO_IMAGE_MIN_BYTES']
+            'The selected image must be larger than {image_min_size}'.format(
+                image_min_size=settings.VIDEO_IMAGE_MIN_FILE_SIZE_KB
             )
         ),
         (
@@ -742,7 +742,14 @@ class VideoImageTestCase(VideoUploadTestBase, CourseTestCase):
         ),
     )
     @ddt.unpack
-    def test_video_image_validation(self, image_data, error_message):
+    def test_video_image_validation_message(self, image_data, error_message):
+        """
+        Test video image validation gives proper error message.
+
+        Arguments:
+            image_data (Dict): Specific data to create image file.
+            error_message (String): Error message
+        """
         edx_video_id = 'test1'
         video_image_upload_url = self.get_url_for_course_key(self.course.id, {'edx_video_id': edx_video_id})
         with make_image_file(
