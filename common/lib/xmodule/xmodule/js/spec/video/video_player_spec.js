@@ -5,10 +5,13 @@
 ['video/03_video_player.js', 'hls'],
 function(VideoPlayer, HLS) {
     describe('VideoPlayer', function() {
-        var state, oldOTBD, empty_arguments;
+        var STATUS = window.STATUS,
+            state,
+            oldOTBD,
+            emptyArguments;
 
         (function() {
-            empty_arguments = arguments;
+            emptyArguments = arguments;
         })();
 
         beforeEach(function() {
@@ -219,8 +222,8 @@ function(VideoPlayer, HLS) {
                 });
 
                 it('trigger pause and ended events', function() {
-                    expect($.fn.trigger).toHaveBeenCalledWith('pause', empty_arguments);
-                    expect($.fn.trigger).toHaveBeenCalledWith('ended', empty_arguments);
+                    expect($.fn.trigger).toHaveBeenCalledWith('pause', emptyArguments);
+                    expect($.fn.trigger).toHaveBeenCalledWith('ended', emptyArguments);
                 });
             });
         });
@@ -242,7 +245,7 @@ function(VideoPlayer, HLS) {
                 });
 
                 it('pause the video caption', function() {
-                    expect($.fn.trigger).toHaveBeenCalledWith('pause', empty_arguments);
+                    expect($.fn.trigger).toHaveBeenCalledWith('pause', emptyArguments);
                 });
             });
 
@@ -281,7 +284,7 @@ function(VideoPlayer, HLS) {
                 });
 
                 it('play the video caption', function() {
-                    expect($.fn.trigger).toHaveBeenCalledWith('play', empty_arguments);
+                    expect($.fn.trigger).toHaveBeenCalledWith('play', emptyArguments);
                 });
             });
 
@@ -314,7 +317,7 @@ function(VideoPlayer, HLS) {
                 });
 
                 it('pause the video caption', function() {
-                    expect($.fn.trigger).toHaveBeenCalledWith('pause', empty_arguments);
+                    expect($.fn.trigger).toHaveBeenCalledWith('pause', emptyArguments);
                 });
             });
 
@@ -334,7 +337,7 @@ function(VideoPlayer, HLS) {
                 });
 
                 it('pause the video caption', function() {
-                    expect($.fn.trigger).toHaveBeenCalledWith('ended', empty_arguments);
+                    expect($.fn.trigger).toHaveBeenCalledWith('ended', emptyArguments);
                 });
             });
         });
@@ -1009,6 +1012,39 @@ function(VideoPlayer, HLS) {
                 expect($('.video-hls-error').text().trim()).toEqual(
                     'Your browser does not support this video format. Try using a different browser.'
                 );
+            });
+        });
+
+        describe('Overlay Play Button', function() {
+            var playButtonOverlaySelector = '.video-wrapper .btn-play.fa.fa-youtube-play.fa-2x';
+            beforeEach(function() {
+                state = jasmine.initializePlayer();
+            });
+
+            it('shows the play button after player is ready', function(done) {
+                jasmine.fireEvent(state.videoPlayer.player.video, 'loadedmetadata');
+                jasmine.waitUntil(function() {
+                    return state.videoPlayer.player.getPlayerState() !== STATUS.UNSTARTED;
+                }).then(function() {
+                    expect($(playButtonOverlaySelector)).not.toHaveClass('is-hidden');
+                }).always(done);
+            });
+
+            it('hides the play button on play', function() {
+                $(state.videoPlayer.player.videoEl).trigger('click');  // play
+                expect($(playButtonOverlaySelector)).toHaveClass('is-hidden');
+            });
+
+            it('shows the play button on pause', function() {
+                $(state.videoPlayer.player.videoEl).trigger('click');  // play
+                $(state.videoPlayer.player.videoEl).trigger('click');  // pause
+                expect($(playButtonOverlaySelector)).toHaveClass('is-hidden');
+            });
+
+            it('plays the video when overlay button is clicked', function() {
+                $('.video-wrapper .btn-play').trigger('click');  // play
+                expect($(playButtonOverlaySelector)).toHaveClass('is-hidden');
+                expect(state.videoPlayer.player.getPlayerState()).toEqual(STATUS.PLAYING);
             });
         });
     });
