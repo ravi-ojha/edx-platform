@@ -128,6 +128,7 @@ var wpconfig = {
     },
 
     externals: {
+        jquery: 'jQuery',
         gettext: 'gettext'
     },
 
