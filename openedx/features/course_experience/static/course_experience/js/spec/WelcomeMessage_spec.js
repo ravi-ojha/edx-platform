@@ -1,5 +1,6 @@
 /* globals $, loadFixtures */
 
+import 'mock-ajax';
 import { WelcomeMessage } from '../WelcomeMessage';
 
 describe('Welcome Message factory', () => {
