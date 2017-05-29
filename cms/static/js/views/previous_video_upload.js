@@ -21,11 +21,7 @@ define(
                     model: this.model,
                     imageUploadURL: options.videoImageUploadURL,
                     defaultVideoImageURL: options.defaultVideoImageURL,
-                    videoImageMaxSize: options.videoImageSettings['max_size'],
-                    videoImageMinSize: options.videoImageSettings['min_size'],
-                    videoImageMaxWidth: options.videoImageSettings['max_width'],
-                    videoImageMaxHeight: options.videoImageSettings['max_height'],
-                    videoImageSupportedFileFormats: options.videoImageSettings['supported_file_formats']
+                    videoImageSettings: options.videoImageSettings
                 });
             },
 

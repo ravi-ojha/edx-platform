@@ -4,7 +4,19 @@ define(
     function($, _, Backbone, PreviousVideoUploadView, TemplateHelpers, ViewHelpers) {
         'use strict';
         describe('PreviousVideoUploadView', function() {
-            var render = function(modelData) {
+            var VIDEO_IMAGE_MAX_BYTES = 2 * 1024 * 1024,
+                VIDEO_IMAGE_MIN_BYTES = 2 * 1024,
+                VIDEO_IMAGE_MAX_WIDTH = 1280,
+                VIDEO_IMAGE_MAX_HEIGHT = 720,
+                VIDEO_IMAGE_SUPPORTED_FILE_FORMATS = {
+                    '.png': 'image/png',
+                    '.gif': 'image/gif',
+                    '.bmp': 'image/bmp',
+                    '.bmp2': 'image/x-ms-bmp',   // PIL gives x-ms-bmp format
+                    '.jpg': 'image/jpeg',
+                    '.jpeg': 'image/jpeg',
+                },
+                render = function(modelData) {
                 var defaultData = {
                         client_video_id: 'foo.mp4',
                         duration: 42,
@@ -14,7 +26,14 @@ define(
                     },
                     view = new PreviousVideoUploadView({
                         model: new Backbone.Model($.extend({}, defaultData, modelData)),
-                        videoHandlerUrl: '/videos/course-v1:org.0+course_0+Run_0'
+                        videoHandlerUrl: '/videos/course-v1:org.0+course_0+Run_0',
+                        videoImageSettings: {
+                            'max_size': VIDEO_IMAGE_MAX_BYTES,
+                            'min_size': VIDEO_IMAGE_MIN_BYTES,
+                            'max_width': VIDEO_IMAGE_MAX_WIDTH,
+                            'max_height': VIDEO_IMAGE_MAX_HEIGHT,
+                            'supported_file_formats': VIDEO_IMAGE_SUPPORTED_FILE_FORMATS
+                        }
                     });
                 return view.render().$el;
             };

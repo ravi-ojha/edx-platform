@@ -421,7 +421,7 @@ def videos_index_html(course):
                 'min_size': settings.VIDEO_IMAGE_SETTINGS['VIDEO_IMAGE_MIN_BYTES'],
                 'max_width': settings.VIDEO_IMAGE_MAX_WIDTH,
                 'max_height': settings.VIDEO_IMAGE_MAX_HEIGHT,
-                'supported_file_formats': settings.VIDEO_IMAGE_SUPPORTED_FILE_FORMATS.keys()
+                'supported_file_formats': settings.VIDEO_IMAGE_SUPPORTED_FILE_FORMATS
             }
         }
     )

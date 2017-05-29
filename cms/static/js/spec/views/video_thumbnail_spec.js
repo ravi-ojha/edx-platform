@@ -1,12 +1,25 @@
 define(
     ['jquery', 'underscore', 'backbone', 'edx-ui-toolkit/js/utils/spec-helpers/ajax-helpers',
-        'js/views/video_thumbnail', 'common/js/spec_helpers/template_helpers'],
-    function($, _, Backbone, AjaxHelpers, VideoThumbnailView, TemplateHelpers) {
+        'js/views/video_thumbnail', 'js/views/previous_video_upload', 'common/js/spec_helpers/template_helpers'],
+    function($, _, Backbone, AjaxHelpers, VideoThumbnailView, PreviousVideoUploadView, TemplateHelpers) {
         'use strict';
         describe('VideoThumbnailView', function() {
             var IMAGE_UPLOAD_URL = '/videos/upload/image',
                 UPLOADED_IMAGE_URL = 'images/upload_success.jpg',
+                VIDEO_IMAGE_MAX_BYTES = 2 * 1024 * 1024,
+                VIDEO_IMAGE_MIN_BYTES = 2 * 1024,
+                VIDEO_IMAGE_MAX_WIDTH = 1280,
+                VIDEO_IMAGE_MAX_HEIGHT = 720,
+                VIDEO_IMAGE_SUPPORTED_FILE_FORMATS = {
+                    '.png': 'image/png',
+                    '.gif': 'image/gif',
+                    '.bmp': 'image/bmp',
+                    '.bmp2': 'image/x-ms-bmp',   // PIL gives x-ms-bmp format
+                    '.jpg': 'image/jpeg',
+                    '.jpeg': 'image/jpeg',
+                },
                 videoThumbnailView,
+                createVideoView,
                 createFakeImageFile,
                 verifyStateInfo,
                 render = function(modelData) {
@@ -20,16 +33,49 @@ define(
                     };
                     videoThumbnailView = new VideoThumbnailView({
                         model: new Backbone.Model($.extend({}, defaultData, modelData)),
-                        imageUploadURL: IMAGE_UPLOAD_URL
+                        imageUploadURL: IMAGE_UPLOAD_URL,
+                        videoImageSettings: {
+                            'max_size': VIDEO_IMAGE_MAX_BYTES,
+                            'min_size': VIDEO_IMAGE_MIN_BYTES,
+                            'max_width': VIDEO_IMAGE_MAX_WIDTH,
+                            'max_height': VIDEO_IMAGE_MAX_HEIGHT,
+                            'supported_file_formats': VIDEO_IMAGE_SUPPORTED_FILE_FORMATS
+                        }
                     });
                     return videoThumbnailView.render().$el;
                 };
 
-            createFakeImageFile = function(size) {
-                var fileFakeData = 'i63ljc6giwoskyb9x5sw0169bdcmcxr3cdz8boqv0lik971972cmd6yknvcxr5sw0nvc169bdcmcxsdf';
+
+            createVideoView = function (modelData) {
+                var defaultData = {
+                        client_video_id: 'foo.mp4',
+                        duration: 42,
+                        created: '2014-11-25T23:13:05',
+                        edx_video_id: 'dummy_id',
+                        status: 'uploading',
+                        thumbnail_url: null
+                    },
+                    previousVideoUploadView = new PreviousVideoUploadView({
+                        model: new Backbone.Model($.extend({}, defaultData, modelData)),
+                        videoHandlerUrl: '/videos/course-v1:org.0+course_0+Run_0',
+                        videoImageSettings: {
+                            'max_size': VIDEO_IMAGE_MAX_BYTES,
+                            'min_size': VIDEO_IMAGE_MIN_BYTES,
+                            'max_width': VIDEO_IMAGE_MAX_WIDTH,
+                            'max_height': VIDEO_IMAGE_MAX_HEIGHT,
+                            'supported_file_formats': VIDEO_IMAGE_SUPPORTED_FILE_FORMATS
+                        }
+                    });
+                return previousVideoUploadView;
+            };
+
+
+            createFakeImageFile = function(size, type) {
+                var size = size || VIDEO_IMAGE_MIN_BYTES,
+                    type = type || 'image/jpeg';
                 return new Blob(
-                    [fileFakeData.substr(0, size)],
-                    {type: 'image/jpg'}
+                    [Array(size + 1).join('i')],
+                    {type: type}
                 );
             };
 
@@ -125,7 +171,7 @@ define(
                 verifyStateInfo($thumbnail, 'requirements', true, additionalSRText);
 
                 // Add image to upload queue and send POST request to upload image
-                $el.find('.upload-image-input').fileupload('add', {files: [createFakeImageFile(60)]});
+                $el.find('.upload-image-input').fileupload('add', {files: [createFakeImageFile()]});
 
                 verifyStateInfo($thumbnail, 'progress');
 
@@ -149,27 +195,11 @@ define(
                 videoThumbnailView.chooseFile();
 
                 // Add image to upload queue and send POST request to upload image
-                $el.find('.upload-image-input').fileupload('add', {files: [createFakeImageFile(60)]});
+                $el.find('.upload-image-input').fileupload('add', {files: [createFakeImageFile()]});
 
                 AjaxHelpers.respondWithError(requests, 400);
 
-                verifyStateInfo($thumbnail, 'error');
-            });
-
-            it('should show error notification in case of server error', function() {
-                var $el = render({}),
-                    requests = AjaxHelpers.requests(this);
-
-                videoThumbnailView.chooseFile();
-
-                // Add image to upload queue and send POST request to upload image
-                $el.find('.upload-image-input').fileupload('add', {files: [createFakeImageFile(60)]});
-
-                AjaxHelpers.respondWithError(requests);
-
-                expect($('#notification-error-title').text().trim()).toEqual(
-                    "Studio's having trouble saving your work"
-                );
+                verifyStateInfo(videoThumbnailView, $thumbnail, 'error');
             });
 
             it('calls readMessage with correct message', function() {
@@ -182,6 +212,123 @@ define(
                 videoThumbnailView.imageUploadFailed();
                 expect(videoThumbnailView.readMessages).toHaveBeenCalledWith(['Video image upload failed']);
             });
+
+            it('should show error message in case of server error', function() {
+                var $el = render({}),
+                    requests = AjaxHelpers.requests(this);
+
+                videoThumbnailView.chooseFile();
+
+                // Add image to upload queue and send POST request to upload image
+                $el.find('.upload-image-input').fileupload('add', {files: [createFakeImageFile()]});
+
+                AjaxHelpers.respondWithError(requests);
+
+                // Verify error message is present
+                expect($videoEl.find('.thumbnail-error-wrapper .thumbnail-error')).toExist();
+            });
+
+            it('should show error message when file is smaller than minimum size', function () {
+                var errorMessage,
+                    $thumbnailErrorEl,
+                    videoView = createVideoView({}),
+                    $videoEl = videoView.render().$el,
+                    videoThumbnailView = videoView.videoThumbnailView,
+                    $el = videoThumbnailView.render().$el,
+                    requests = AjaxHelpers.requests(this);
+
+                videoThumbnailView.chooseFile();
+
+                // Add image to upload queue and send POST request to upload image
+                $el.find('.upload-image-input')
+                    .fileupload('add', {files: [createFakeImageFile(VIDEO_IMAGE_MIN_BYTES - 10)]});
+
+                errorMessage = 'The selected image must be larger than ' +
+                    videoThumbnailView.getVideoImageMinSize().humanize + '.',
+                // Verify error message
+                $thumbnailErrorEl = $videoEl.find('.thumbnail-error-wrapper .thumbnail-error');
+                expect($thumbnailErrorEl.find('.action-text').html().trim()).toEqual(errorMessage);
+            });
+
+            it('should show error message when file is larger than maximum size', function () {
+                var errorMessage,
+                    $thumbnailErrorEl,
+                    videoView = createVideoView({}),
+                    $videoEl = videoView.render().$el,
+                    videoThumbnailView = videoView.videoThumbnailView,
+                    $el = videoThumbnailView.render().$el,
+                    requests = AjaxHelpers.requests(this);
+
+                videoThumbnailView.chooseFile();
+
+                // Add image to upload queue and send POST request to upload image
+                $el.find('.upload-image-input')
+                    .fileupload('add', {files: [createFakeImageFile(VIDEO_IMAGE_MAX_BYTES + 10)]});
+
+                errorMessage = 'The selected image must be smaller than ' +
+                    videoThumbnailView.getVideoImageMaxSize().humanize + '.',
+                // Verify error message
+                $thumbnailErrorEl = $videoEl.find('.thumbnail-error-wrapper .thumbnail-error');
+                expect($thumbnailErrorEl.find('.action-text').html().trim()).toEqual(errorMessage);
+            });
+
+            it('should not show error message when file is appropriate size', function () {
+                var videoView = createVideoView({}),
+                    $videoEl = videoView.render().$el,
+                    videoThumbnailView = videoView.videoThumbnailView,
+                    $el = videoThumbnailView.render().$el,
+                    requests = AjaxHelpers.requests(this);
+
+                videoThumbnailView.chooseFile();
+
+                // Add image to upload queue and send POST request to upload image
+                $el.find('.upload-image-input')
+                    .fileupload('add', {files: [createFakeImageFile(VIDEO_IMAGE_MIN_BYTES)]});
+
+                // Verify error not present.
+                expect($videoEl.find('.thumbnail-error-wrapper .thumbnail-error')).not.toExist();
+            });
+
+            it('should show error message when file has unsupported content type', function () {
+                var errorMessage,
+                    $thumbnailErrorEl,
+                    videoView = createVideoView({}),
+                    $videoEl = videoView.render().$el,
+                    videoThumbnailView = videoView.videoThumbnailView,
+                    $el = videoThumbnailView.render().$el,
+                    requests = AjaxHelpers.requests(this);
+
+                videoThumbnailView.chooseFile();
+
+                // Add image to upload queue and send POST request to upload image
+                $el.find('.upload-image-input')
+                    .fileupload('add', {files: [createFakeImageFile(VIDEO_IMAGE_MIN_BYTES, 'mov/mp4')]});
+
+
+                errorMessage = 'The selected image contains unsupported image file type. Supported file formats are ' +
+                    videoThumbnailView.getVideoImageSupportedFileFormats().humanize + '.';
+                // Verify error message
+                $thumbnailErrorEl = $videoEl.find('.thumbnail-error-wrapper .thumbnail-error');
+                expect($thumbnailErrorEl.find('.action-text').html().trim()).toEqual(errorMessage);
+            });
+
+            it('should not show error message when file has supported content type', function () {
+                var videoView = createVideoView({}),
+                    $videoEl = videoView.render().$el,
+                    videoThumbnailView = videoView.videoThumbnailView,
+                    $el = videoThumbnailView.render().$el,
+                    requests = AjaxHelpers.requests(this);
+
+                videoThumbnailView.chooseFile();
+
+                // Add image to upload queue and send POST request to upload image
+                $el.find('.upload-image-input')
+                    .fileupload('add', {files: [createFakeImageFile(VIDEO_IMAGE_MIN_BYTES)]});
+
+                // Verify error message not present
+                expect($videoEl.find('.thumbnail-error-wrapper .thumbnail-error')).not.toExist();
+            });
+
         });
     }
 );

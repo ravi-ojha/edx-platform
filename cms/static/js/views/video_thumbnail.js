@@ -23,11 +23,7 @@ define(
                 this.imageUploadURL = options.imageUploadURL;
                 this.defaultVideoImageURL = options.defaultVideoImageURL;
                 this.action = this.model.get('course_video_image_url') ? 'edit' : 'upload';
-                this.videoImageMaxSize = options.videoImageMaxSize;
-                this.videoImageMinSize = options.videoImageMinSize;
-                this.videoImageMaxWidth = options.videoImageMaxWidth;
-                this.videoImageMaxHeight = options.videoImageMaxHeight;
-                this.videoImageSupportedFileFormats = options.videoImageSupportedFileFormats;
+                this.videoImageSettings = options.videoImageSettings;
                 this.actionsInfo = {
                     upload: {
                         icon: '',
@@ -52,7 +48,7 @@ define(
                             gettext('Image requirements {lineBreak} {videoImageResoultion} {lineBreak} {videoImageSupportedFileFormats}'),
                             {
                                 videoImageResoultion: this.getVideoImageResolution(),
-                                videoImageSupportedFileFormats: this.getVideoImageSupportedFileFormats(),
+                                videoImageSupportedFileFormats: this.getVideoImageSupportedFileFormats().humanize,
                                 lineBreak: HtmlUtils.HTML('<br>')
                             }
                         ).toString()
@@ -85,24 +81,24 @@ define(
             },
 
             getVideoImageSupportedFileFormats: function() {
-                var supportedFormatsArray = this.videoImageSupportedFileFormats.sort();
+                var supportedFormats = _.keys(this.videoImageSettings['supported_file_formats']).sort();
                 return {
-                    humanize: supportedFormatsArray.slice(0, -1).join(', ') + ' or ' + supportedFormatsArray.slice(-1),
-                    machine: supportedFormatsArray
+                    humanize: supportedFormats.slice(0, -1).join(', ') + ' or ' + supportedFormats.slice(-1),
+                    machine: _.values(this.videoImageSettings['supported_file_formats']).sort()
                 }
             },
 
             getVideoImageMaxSize: function() {
                 return {
-                    humanize: this.videoImageMaxSize/(1024*1024) + ' MB',
-                    machine: this.videoImageMaxSize
+                    humanize: this.videoImageSettings['max_size']/(1024*1024) + ' MB',
+                    machine: this.videoImageSettings['max_size']
                 }
             },
 
             getVideoImageMinSize: function() {
                 return {
-                    humanize: this.videoImageMinSize/1024 + ' KB',
-                    machine: this.videoImageMinSize
+                    humanize: this.videoImageSettings['min_size']/1024 + ' KB',
+                    machine: this.videoImageSettings['min_size']
                 }
             },
 
@@ -110,7 +106,7 @@ define(
                 return StringUtils.interpolate(
                     // Translators: message will be like 1280x720 pixels
                     gettext('{maxWidth}x{maxHeight} pixels'),
-                    {maxWidth: this.videoImageMaxWidth, maxHeight: this.videoImageMaxHeight}
+                    {maxWidth: this.videoImageSettings['max_width'], maxHeight: this.videoImageSettings['max_height']}
                 );
             },
 
@@ -228,9 +224,12 @@ define(
                 this.action = 'error';
                 this.setActionInfo(this.action, true);
                 this.showErrorMessage(errorText);
+                this.undelegateEvents();
+                this.delegateEvents(); // this will bind all events once again
             },
 
             showErrorMessage: function(errorText) {
+                var $thumbnailWrapperEl = this.$el.parent().find('.thumbnail-wrapper');
                 this.readMessages([gettext('Video image upload failed'), errorText]);
                 HtmlUtils.setHtml(
                     this.$el.parent(),
@@ -240,6 +239,8 @@ define(
                         orignalParentHTML: this.$el.parent().html()
                     })
                 );
+                this.$el = $('.thumbnail-error-wrapper .thumbnail-wrapper');
+                //this.setElement($('.thumbnail-error-wrapper .thumbnail-wrapper'));
             },
 
             showUploadInProgressMessage: function() {
@@ -281,11 +282,8 @@ define(
             validateImageFile: function(imageFile) {
                 var errorMessage = '';
                 var self = this,
-                    fileName,
-                    fileType;
-
-                fileName = imageFile.name;
-                fileType = fileName.substr(fileName.lastIndexOf('.'));
+                    fileName = imageFile.name,
+                    fileType = imageFile.type;
 
                 if (!_.contains(self.getVideoImageSupportedFileFormats().machine, fileType)) {
                     errorMessage = gettext(
