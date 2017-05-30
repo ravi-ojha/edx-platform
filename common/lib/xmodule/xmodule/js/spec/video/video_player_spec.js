@@ -1022,7 +1022,6 @@ function(VideoPlayer, HLS) {
             });
 
             it('shows the play button after player is ready', function(done) {
-                jasmine.fireEvent(state.videoPlayer.player.video, 'loadedmetadata');
                 jasmine.waitUntil(function() {
                     return state.videoPlayer.player.getPlayerState() !== STATUS.UNSTARTED;
                 }).then(function() {
@@ -1030,21 +1029,32 @@ function(VideoPlayer, HLS) {
                 }).always(done);
             });
 
-            it('hides the play button on play', function() {
+            it('hides the play button on play', function(done) {
                 $(state.videoPlayer.player.videoEl).trigger('click');  // play
-                expect($(playButtonOverlaySelector)).toHaveClass('is-hidden');
-            });
-
-            it('shows the play button on pause', function() {
-                $(state.videoPlayer.player.videoEl).trigger('click');  // play
-                $(state.videoPlayer.player.videoEl).trigger('click');  // pause
-                expect($(playButtonOverlaySelector)).toHaveClass('is-hidden');
+                jasmine.waitUntil(function() {
+                    return state.videoPlayer.player.getPlayerState() === STATUS.PLAYING;
+                }).then(function() {
+                    expect($(playButtonOverlaySelector)).toHaveClass('is-hidden');
+                }).always(done);
             });
 
             it('plays the video when overlay button is clicked', function() {
                 $('.video-wrapper .btn-play').trigger('click');  // play
-                expect($(playButtonOverlaySelector)).toHaveClass('is-hidden');
                 expect(state.videoPlayer.player.getPlayerState()).toEqual(STATUS.PLAYING);
+                expect($(playButtonOverlaySelector)).toHaveClass('is-hidden');
+            });
+
+            it('shows the play button on pause', function(done) {
+                $(state.videoPlayer.player.videoEl).trigger('click');  // play
+                expect(state.videoPlayer.player.getPlayerState()).toEqual(STATUS.PLAYING);
+                $(state.videoPlayer.player.videoEl).trigger('click');  // pause
+                expect(state.videoPlayer.player.getPlayerState()).toEqual(STATUS.PAUSED);
+                jasmine.waitUntil(function() {
+                    return $(playButtonOverlaySelector).attr('class').split(' ')
+                            .indexOf('is-hidden') === -1;
+                }).then(function() {
+                    expect($(playButtonOverlaySelector)).not.toHaveClass('is-hidden');
+                }).always(done);
             });
         });
     });
