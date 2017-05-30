@@ -878,6 +878,10 @@ def available_division_schemes(course_key):
     return available_schemes
 
 
+def enrollment_track_group_count(course_key):
+    return len(_get_enrollment_track_groups(course_key))
+
+
 def _get_course_division_scheme(course_discussion_settings):
     division_scheme = course_discussion_settings.division_scheme
     if (

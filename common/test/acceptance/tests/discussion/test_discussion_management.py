@@ -356,11 +356,39 @@ class DivisionSchemeTest(BaseDividedDiscussionTest, BaseDiscussionMixin):
 
     def test_disabling_cohorts(self):
         """
-        Test that disabling cohorts hides the cohort division scheme iff it is not the selected scheme
+        Test that disabling cohorts hides the discussion management tab if 1 or less enrollment track
         (even without reloading the page).
         """
-        # TODO: will be added as part of AJ's work.
-        pass
+        self.disable_cohorting(self.course_fixture)
+        self.instructor_dashboard_page.visit()
+        self.assertFalse(self.instructor_dashboard_page.is_discussion_management_visible())
+
+    def test_disabling_cohorts_with_enrollment_tracks(self):
+        """
+        Test that disabling cohorts does not hide the discussion tab when there are more than one enrollment track, but
+        does not hide the division scheme for cohorts iff it was selected.
+        (even without reloading the page).
+        """
+        add_enrollment_course_modes(self.browser, self.course_id, ['audit', 'verified'])
+
+        # Verify that the tab is visible
+        self.instructor_dashboard_page.visit()
+        self.assertTrue(self.instructor_dashboard_page.is_discussion_management_visible())
+        self.disable_cohorting(self.course_fixture)
+        self.assertTrue(self.instructor_dashboard_page.is_discussion_management_visible())
+
+        # Go to Discussions tab and ensure that the correct scheme options are visible
+        self.view_discussion_management_page()
+        self.assertTrue(
+            self.discussion_management_page.division_scheme_visible(
+                self.discussion_management_page.ENROLLMENT_TRACK_SCHEME
+            )
+        )
+        self.assertTrue(
+            self.discussion_management_page.division_scheme_visible(
+                self.discussion_management_page.COHORT_SCHEME
+            )
+        )
 
     def test_single_enrollment_mode(self):
         """
@@ -372,6 +400,15 @@ class DivisionSchemeTest(BaseDividedDiscussionTest, BaseDiscussionMixin):
                 self.discussion_management_page.ENROLLMENT_TRACK_SCHEME
             )
         )
+
+    def test_single_enrollment_mode_no_cohort(self):
+        """
+        Test that the enrollment track scheme is not visible if there is a single enrollment mode.
+        """
+        self.disable_cohorting(self.course_fixture)
+        add_enrollment_course_modes(self.browser, self.course_id, ['audit'])
+        self.instructor_dashboard_page.visit()
+        self.assertFalse(self.instructor_dashboard_page.is_discussion_management_visible())
 
     def test_radio_buttons_with_multiple_enrollment_modes(self):
         """
