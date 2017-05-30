@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
-from django.db import migrations, models
 import django.db.models.deletion
-import coursewarehistoryextended.fields
 from django.conf import settings
+from django.db import migrations, models
+
+import coursewarehistoryextended.fields
+
 
 def bump_pk_start(apps, schema_editor):
     if not schema_editor.connection.alias == 'student_module_history':

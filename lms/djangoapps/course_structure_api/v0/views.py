@@ -4,14 +4,13 @@ import logging
 
 from django.conf import settings
 from django.http import Http404
+from opaque_keys.edx.keys import CourseKey
 from rest_framework.authentication import SessionAuthentication
-from rest_framework_oauth.authentication import OAuth2Authentication
 from rest_framework.exceptions import AuthenticationFailed
-from rest_framework.generics import RetrieveAPIView, ListAPIView
+from rest_framework.generics import ListAPIView, RetrieveAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from xmodule.modulestore.django import modulestore
-from opaque_keys.edx.keys import CourseKey
+from rest_framework_oauth.authentication import OAuth2Authentication
 
 from course_structure_api.v0 import serializers
 from courseware import courses
@@ -19,7 +18,7 @@ from courseware.access import has_access
 from openedx.core.djangoapps.content.course_structures.api.v0 import api, errors
 from openedx.core.lib.exceptions import CourseNotFoundError
 from student.roles import CourseInstructorRole, CourseStaffRole
-
+from xmodule.modulestore.django import modulestore
 
 log = logging.getLogger(__name__)
 

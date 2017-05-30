@@ -1,36 +1,37 @@
-from collections import defaultdict
-from datetime import datetime
 import json
 import logging
-from django.conf import settings
+from collections import defaultdict
+from datetime import datetime
 
 import pytz
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.urlresolvers import reverse
 from django.db import connection
 from django.http import HttpResponse
 from django.utils.timezone import UTC
-import pystache_custom as pystache
-from opaque_keys.edx.locations import i4xEncoder
 from opaque_keys.edx.keys import CourseKey
-from xmodule.modulestore.django import modulestore
+from opaque_keys.edx.locations import i4xEncoder
 
-from django_comment_common.models import Role, FORUM_ROLE_STUDENT
-from django_comment_client.permissions import check_permissions_by_view, has_permission, get_team
-from django_comment_client.settings import MAX_COMMENT_DEPTH
-from django_comment_client.constants import TYPE_ENTRY, TYPE_SUBCATEGORY
-from edxmako import lookup_template
-
+import pystache_custom as pystache
 from courseware import courses
 from courseware.access import has_access
+from django_comment_client.constants import TYPE_ENTRY, TYPE_SUBCATEGORY
+from django_comment_client.permissions import check_permissions_by_view, get_team, has_permission
+from django_comment_client.settings import MAX_COMMENT_DEPTH
+from django_comment_common.models import FORUM_ROLE_STUDENT, Role
+from edxmako import lookup_template
 from openedx.core.djangoapps.content.course_structures.models import CourseStructure
 from openedx.core.djangoapps.course_groups.cohorts import (
-    get_course_cohort_settings, get_cohort_by_id, get_cohort_id, is_course_cohorted
+    get_cohort_by_id,
+    get_cohort_id,
+    get_course_cohort_settings,
+    is_course_cohorted
 )
 from openedx.core.djangoapps.course_groups.models import CourseUserGroup
 from request_cache.middleware import request_cached
 from student.roles import GlobalStaff
-
+from xmodule.modulestore.django import modulestore
 
 log = logging.getLogger(__name__)
 

@@ -6,9 +6,9 @@ from django.contrib.auth.models import User
 from django.http import Http404
 from edx_rest_api_client import exceptions
 from rest_framework.authentication import SessionAuthentication
-from rest_framework.views import APIView
-from rest_framework.generics import RetrieveUpdateAPIView, ListAPIView
+from rest_framework.generics import ListAPIView, RetrieveUpdateAPIView
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.views import APIView
 from rest_framework_oauth.authentication import OAuth2Authentication
 
 from commerce.api.v1.models import Course

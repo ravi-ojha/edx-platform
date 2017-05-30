@@ -2,62 +2,52 @@
 Views handling read (GET) requests for the Discussion tab and inline discussions.
 """
 
-from functools import wraps
 import logging
+from contextlib import contextmanager
+from functools import wraps
 from sets import Set
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
-from django.core.context_processors import csrf
-from django.core.urlresolvers import reverse
 from django.contrib.auth.models import User
 from django.contrib.staticfiles.storage import staticfiles_storage
+from django.core.context_processors import csrf
+from django.core.urlresolvers import reverse
 from django.http import Http404, HttpResponseServerError
 from django.shortcuts import render_to_response
 from django.template.loader import render_to_string
 from django.utils.translation import get_language_bidi
 from django.views.decorators.http import require_GET
+from opaque_keys.edx.keys import CourseKey
+from rest_framework import status
+from web_fragments.fragment import Fragment
+
+import django_comment_client.utils as utils
+import lms.lib.comment_client as cc
+from courseware.access import has_access
+from courseware.courses import get_course_with_access
+from courseware.views.views import CourseTabView
+from django_comment_client.permissions import get_team, has_permission
+from django_comment_client.utils import (
+    add_courseware_context,
+    extract,
+    get_group_id_for_comments_service,
+    get_group_id_for_user,
+    is_commentable_divided,
+    merge_dict,
+    strip_none
+)
+from django_comment_common.utils import ThreadContext
+from openedx.core.djangoapps.course_groups.cohorts import get_course_cohorts, is_course_cohorted
+from openedx.core.djangoapps.plugin_api.views import EdxFragmentView
+from student.models import CourseEnrollment
+from xmodule.modulestore.django import modulestore
 
 log = logging.getLogger("edx.discussions")
 try:
     import newrelic.agent
 except ImportError:
     newrelic = None  # pylint: disable=invalid-name
-
-from rest_framework import status
-
-from web_fragments.fragment import Fragment
-
-from courseware.courses import get_course_with_access
-from courseware.views.views import CourseTabView
-from openedx.core.djangoapps.course_groups.cohorts import (
-    is_course_cohorted,
-    get_course_cohorts,
-)
-from openedx.core.djangoapps.plugin_api.views import EdxFragmentView
-
-from courseware.access import has_access
-from student.models import CourseEnrollment
-from xmodule.modulestore.django import modulestore
-
-from django_comment_common.utils import ThreadContext
-from django_comment_client.permissions import has_permission, get_team
-from django_comment_client.utils import (
-    merge_dict,
-    extract,
-    strip_none,
-    add_courseware_context,
-    get_group_id_for_comments_service,
-    is_commentable_divided,
-    get_group_id_for_user,
-)
-
-import django_comment_client.utils as utils
-import lms.lib.comment_client as cc
-
-from opaque_keys.edx.keys import CourseKey
-
-from contextlib import contextmanager
 
 THREADS_PER_PAGE = 20
 INLINE_THREADS_PER_PAGE = 20

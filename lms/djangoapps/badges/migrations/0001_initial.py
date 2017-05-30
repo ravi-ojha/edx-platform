@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
-from django.db import migrations, models
-import jsonfield.fields
-import badges.models
-from django.conf import settings
 import django.utils.timezone
+import jsonfield.fields
+from django.conf import settings
+from django.db import migrations, models
 from model_utils import fields
+
+import badges.models
 from openedx.core.djangoapps.xmodule_django.models import CourseKeyField
 
 

@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
-from django.db import migrations, models
 import django.utils.timezone
 import model_utils.fields
-from openedx.core.djangoapps.xmodule_django.models import CourseKeyField
+from django.db import migrations, models
+
 import coursewarehistoryextended.fields
+from openedx.core.djangoapps.xmodule_django.models import CourseKeyField
 
 
 class Migration(migrations.Migration):

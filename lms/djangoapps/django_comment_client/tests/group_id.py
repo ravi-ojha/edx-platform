@@ -1,5 +1,6 @@
 import json
 import re
+
 from lms.djangoapps.teams.tests.factories import CourseTeamFactory
 
 

@@ -1,15 +1,14 @@
 """
 Grades Transformer
 """
+import json
 from base64 import b64encode
 from functools import reduce as functools_reduce
 from hashlib import sha1
 from logging import getLogger
-import json
 
 from lms.djangoapps.course_blocks.transformers.utils import collect_unioned_set_field, get_field_on_block
 from openedx.core.djangoapps.content.block_structure.transformer import BlockStructureTransformer
-
 
 log = getLogger(__name__)
 

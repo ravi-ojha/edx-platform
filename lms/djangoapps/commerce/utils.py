@@ -1,8 +1,8 @@
 """Utilities to assist with commerce tasks."""
 from urlparse import urljoin
 
-from django.conf import settings
 import waffle
+from django.conf import settings
 
 from commerce.models import CommerceConfiguration
 from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers

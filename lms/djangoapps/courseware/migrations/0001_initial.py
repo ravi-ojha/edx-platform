@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
-from django.db import migrations, models
-import model_utils.fields
 import django.utils.timezone
+import model_utils.fields
 from django.conf import settings
-from openedx.core.djangoapps.xmodule_django.models import (
-    CourseKeyField, LocationKeyField, BlockTypeKeyField
-)
+from django.db import migrations, models
+
+from openedx.core.djangoapps.xmodule_django.models import BlockTypeKeyField, CourseKeyField, LocationKeyField
 
 
 class Migration(migrations.Migration):

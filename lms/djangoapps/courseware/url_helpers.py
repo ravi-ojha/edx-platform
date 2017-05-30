@@ -5,8 +5,8 @@ from urllib import urlencode
 
 from django.core.urlresolvers import reverse
 
-from xmodule.modulestore.search import path_to_location, navigation_index
 from xmodule.modulestore.django import modulestore
+from xmodule.modulestore.search import navigation_index, path_to_location
 
 
 # TODO: TNL-6547: Remove unified_course_view parameter

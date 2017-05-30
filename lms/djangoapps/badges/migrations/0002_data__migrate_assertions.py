@@ -2,10 +2,10 @@
 from __future__ import unicode_literals
 
 import json
-from datetime import datetime
-
 import os
 import time
+from datetime import datetime
+
 from django.db import migrations, models
 
 

@@ -3,13 +3,13 @@ Utilities for tests within the django_comment_client module.
 """
 from mock import patch
 
-from openedx.core.djangoapps.course_groups.tests.helpers import CohortFactory
-from django_comment_common.models import Role, ForumsConfig
+from django_comment_common.models import ForumsConfig, Role
 from django_comment_common.utils import seed_permissions_roles
+from openedx.core.djangoapps.course_groups.tests.helpers import CohortFactory
 from student.tests.factories import CourseEnrollmentFactory, UserFactory
 from util.testing import UrlResetMixin
-from xmodule.modulestore.tests.factories import CourseFactory
 from xmodule.modulestore.tests.django_utils import SharedModuleStoreTestCase
+from xmodule.modulestore.tests.factories import CourseFactory
 
 
 class ForumsEnableMixin(object):

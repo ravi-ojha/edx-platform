@@ -1,15 +1,16 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
-from django.db import migrations, models
-import certificates.models
-import model_utils.fields
-import django_extensions.db.fields
-import django_extensions.db.fields.json
 import django.db.models.deletion
 import django.utils.timezone
-from badges.models import validate_badge_image
+import django_extensions.db.fields
+import django_extensions.db.fields.json
+import model_utils.fields
 from django.conf import settings
+from django.db import migrations, models
+
+import certificates.models
+from badges.models import validate_badge_image
 from openedx.core.djangoapps.xmodule_django.models import CourseKeyField
 
 

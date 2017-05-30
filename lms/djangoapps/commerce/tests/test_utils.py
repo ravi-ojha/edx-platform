@@ -8,8 +8,8 @@ from waffle.testutils import override_switch
 
 from commerce.models import CommerceConfiguration
 from commerce.utils import EcommerceService
-from openedx.core.lib.log_utils import audit_log
 from openedx.core.djangoapps.site_configuration.tests.test_util import with_site_configuration
+from openedx.core.lib.log_utils import audit_log
 from student.tests.factories import UserFactory
 
 

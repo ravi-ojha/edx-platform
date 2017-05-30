@@ -7,40 +7,37 @@ from django.http import Http404
 from django.test.client import Client, RequestFactory
 from django.test.utils import override_settings
 from django.utils import translation
-from lms.lib.comment_client.utils import CommentClientPaginatedResult
+from mock import ANY, Mock, call, patch
+from nose.tools import assert_true
 
-from django_comment_common.utils import ThreadContext
-from django_comment_common.models import ForumsConfig
 from django_comment_client.permissions import get_team
 from django_comment_client.tests.group_id import (
-    GroupIdAssertionMixin,
     CohortedTopicGroupIdTestMixin,
-    NonCohortedTopicGroupIdTestMixin,
+    GroupIdAssertionMixin,
+    NonCohortedTopicGroupIdTestMixin
 )
 from django_comment_client.tests.unicode import UnicodeTestMixin
 from django_comment_client.tests.utils import CohortedTestCase, ForumsEnableMixin
 from django_comment_client.utils import strip_none
+from django_comment_common.models import ForumsConfig
+from django_comment_common.utils import ThreadContext
+from lms.djangoapps.courseware.exceptions import CourseAccessRedirect
 from lms.djangoapps.discussion import views
-from student.tests.factories import UserFactory, CourseEnrollmentFactory
-from util.testing import UrlResetMixin
+from lms.djangoapps.teams.tests.factories import CourseTeamFactory
+from lms.lib.comment_client.utils import CommentClientPaginatedResult
+from openedx.core.djangoapps.course_groups.models import CourseUserGroup
 from openedx.core.djangoapps.util.testing import ContentGroupTestCase
 from openedx.features.enterprise_support.tests.mixins.enterprise import EnterpriseTestConsentRequired
+from student.tests.factories import CourseEnrollmentFactory, UserFactory
+from util.testing import UrlResetMixin
 from xmodule.modulestore import ModuleStoreEnum
 from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.tests.django_utils import (
-    ModuleStoreTestCase,
-    SharedModuleStoreTestCase,
     TEST_DATA_MONGO_MODULESTORE,
+    ModuleStoreTestCase,
+    SharedModuleStoreTestCase
 )
-from xmodule.modulestore.tests.factories import check_mongo_calls, CourseFactory, ItemFactory
-
-from nose.tools import assert_true
-from mock import patch, Mock, ANY, call
-
-from openedx.core.djangoapps.course_groups.models import CourseUserGroup
-
-from lms.djangoapps.courseware.exceptions import CourseAccessRedirect
-from lms.djangoapps.teams.tests.factories import CourseTeamFactory
+from xmodule.modulestore.tests.factories import CourseFactory, ItemFactory, check_mongo_calls
 
 log = logging.getLogger(__name__)
 

@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
-from django.db import migrations, models
-import lms.djangoapps.verify_student.models
-import model_utils.fields
 import django.db.models.deletion
 import django.utils.timezone
+import model_utils.fields
 from django.conf import settings
+from django.db import migrations, models
+
+import lms.djangoapps.verify_student.models
 from openedx.core.djangoapps.xmodule_django.models import CourseKeyField
 
 
