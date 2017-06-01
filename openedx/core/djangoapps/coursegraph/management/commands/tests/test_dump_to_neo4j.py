@@ -251,16 +251,35 @@ class TestModuleStoreSerializer(TestDumpToNeo4jCommandBase):
         # the course has 7 "PARENT_OF" relationships and 3 "PRECEDES"
         self.assertEqual(len(relationships), 10)
 
-    def assertBlockPairIsRelationship(self, xblock1, xblock2, relationships, relationship_type):
+    @staticmethod
+    def _extract_relationship_pairs(relationships, relationship_type):
         """
-        Helper assertion that a pair of xblocks have a certain kind of
-        relationship with one another.
+        Helper function that takes a list of py2neo `Relationship` objects,
+        filters them by their `relationship_type`, and returns a list of
+        tuples of the locations of the Relationships' constituent nodes.
         """
         relationship_pairs = [
             tuple([node["location"] for node in rel.nodes()])
             for rel in relationships if rel.type() == relationship_type
         ]
-        location_pair = (unicode(xblock1.location), unicode(xblock2.location))
+        return relationship_pairs
+
+    @staticmethod
+    def _extract_location_pair(xblock1, xblock2):
+        """
+        Helper function that takes two XBlocks and returns a tuple of the
+        string representations of their locations.
+        locations.
+        """
+        return (unicode(xblock1.location), unicode(xblock2.location))
+
+    def assertBlockPairIsRelationship(self, xblock1, xblock2, relationships, relationship_type):
+        """
+        Helper assertion that a pair of xblocks have a certain kind of
+        relationship with one another.
+        """
+        relationship_pairs = self._extract_relationship_pairs(relationships, relationship_type)
+        location_pair = self._extract_location_pair(xblock1, xblock2)
         self.assertIn(location_pair, relationship_pairs)
 
     def assertBlockPairIsNotRelationship(self, xblock1, xblock2, relationships, relationship_type):
@@ -268,11 +287,8 @@ class TestModuleStoreSerializer(TestDumpToNeo4jCommandBase):
         The opposite of `assertBlockPairIsRelationship`: asserts that a pair
         of xblocks do NOT have a certain kind of relationship.
         """
-        relationship_pairs = [
-            tuple([node["location"] for node in rel.nodes()])
-            for rel in relationships if rel.type() == relationship_type
-        ]
-        location_pair = (unicode(xblock1.location), unicode(xblock2.location))
+        relationship_pairs = self._extract_relationship_pairs(relationships, relationship_type)
+        location_pair = self._extract_location_pair(xblock1, xblock2)
         self.assertNotIn(location_pair, relationship_pairs)
 
     def test_precedes_relationship(self):
