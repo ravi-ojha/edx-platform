@@ -6,6 +6,7 @@ from __future__ import unicode_literals, print_function
 
 import logging
 
+from celery.task import task
 from django.core.management.base import BaseCommand
 from django.utils import six, timezone
 from opaque_keys.edx.keys import CourseKey
@@ -27,13 +28,28 @@ bolt_log.setLevel(logging.ERROR)
 PRIMITIVE_NEO4J_TYPES = (integer, string, neo4j_unicode, float, bool)
 
 
+@task
+def method_wrapper(method, *args):
+    """
+    Since celery does not support using methods as background tasks, this is
+    a wrapper function that can be submitted as a task instead.
+    :param method: the method that we want to run as a background task.
+    :param args: that method's arguments.
+    """
+    return method(*args)
+
+
 class ModuleStoreSerializer(object):
     """
     Class with functionality to serialize a modulestore into subgraphs,
     one graph per course.
     """
 
-    def __init__(self, courses=None, skip=None):
+    def __init__(self, course_keys):
+        self.course_keys = course_keys
+
+    @classmethod
+    def create(cls, courses=None, skip=None):
         """
         Sets the object's course_keys attribute from the `courses` parameter.
         If that parameter isn't furnished, loads all course_keys from the
@@ -51,9 +67,9 @@ class ModuleStoreSerializer(object):
                 course.id for course in modulestore().get_course_summaries()
             ]
         if skip is not None:
-            skip_keys = [CourseKey.from_string(course.strip()) for course in skip]
+            skip_keys = set([CourseKey.from_string(course.strip()) for course in skip])
             course_keys = [course_key for course_key in course_keys if course_key not in skip_keys]
-        self.course_keys = course_keys
+        return cls(course_keys)
 
     @staticmethod
     def serialize_item(item):
@@ -248,10 +264,47 @@ class ModuleStoreSerializer(object):
         # before the course's last published event
         return last_this_command_was_run < course_last_published_date
 
+    def dump_course_to_neo4j(self, course_key, graph):
+        """
+        Serializes a course and writes it to neo4j.
+        :param course_key: course key for the course to be exported
+        :param graph: py2neo graph object
+        """
+
+        nodes, relationships = self.serialize_course(course_key)
+        log.info(
+            "%d nodes and %d relationships in %s",
+            len(nodes),
+            len(relationships),
+            course_key,
+        )
+
+        transaction = graph.begin()
+        course_string = six.text_type(course_key)
+        try:
+            # first, delete existing course
+            transaction.run(
+                "MATCH (n:item) WHERE n.course_key='{}' DETACH DELETE n".format(
+                    course_string
+                )
+            )
+
+            # now, re-add it
+            self.add_to_transaction(nodes, transaction)
+            self.add_to_transaction(relationships, transaction)
+            transaction.commit()
+
+        except Exception:  # pylint: disable=broad-except
+            log.exception(
+                "Error trying to dump course %s to neo4j, rolling back",
+                course_string
+            )
+            transaction.rollback()
+
     def dump_courses_to_neo4j(self, graph, override_cache=False):
         """
         Method that iterates through a list of courses in a modulestore,
-        serializes them, then writes them to neo4j
+        serializes them, then submits tasks to write them to neo4j.
         Args:
             graph: py2neo graph object
             override_cache: serialize the courses even if they'be been recently
@@ -263,8 +316,8 @@ class ModuleStoreSerializer(object):
 
         total_number_of_courses = len(self.course_keys)
 
-        successful_courses = []
-        unsuccessful_courses = []
+        submitted_courses = []
+        skipped_courses = []
 
         for index, course_key in enumerate(self.course_keys):
             # first, clear the request cache to prevent memory leaks
@@ -279,43 +332,13 @@ class ModuleStoreSerializer(object):
 
             if not (override_cache or self.should_dump_course(course_key, graph)):
                 log.info("skipping dumping %s, since it hasn't changed", course_key)
-                continue
-
-            nodes, relationships = self.serialize_course(course_key)
-            log.info(
-                "%d nodes and %d relationships in %s",
-                len(nodes),
-                len(relationships),
-                course_key,
-            )
-
-            transaction = graph.begin()
-            course_string = six.text_type(course_key)
-            try:
-                # first, delete existing course
-                transaction.run(
-                    "MATCH (n:item) WHERE n.course_key='{}' DETACH DELETE n".format(
-                        course_string
-                    )
-                )
-
-                # now, re-add it
-                self.add_to_transaction(nodes, transaction)
-                self.add_to_transaction(relationships, transaction)
-                transaction.commit()
-
-            except Exception:  # pylint: disable=broad-except
-                log.exception(
-                    "Error trying to dump course %s to neo4j, rolling back",
-                    course_string
-                )
-                transaction.rollback()
-                unsuccessful_courses.append(course_string)
+                skipped_courses.append(unicode(course_key))
 
             else:
-                successful_courses.append(course_string)
+                method_wrapper.delay(self.dump_course_to_neo4j, course_key, graph)
+                submitted_courses.append(unicode(course_key))
 
-        return successful_courses, unsuccessful_courses
+        return submitted_courses, skipped_courses
 
 
 class Command(BaseCommand):
@@ -382,28 +405,24 @@ class Command(BaseCommand):
             secure=secure,
         )
 
-        mss = ModuleStoreSerializer(options['courses'], options['skip'])
+        mss = ModuleStoreSerializer.create(options['courses'], options['skip'])
 
-        successful_courses, unsuccessful_courses = mss.dump_courses_to_neo4j(
+        submitted_courses, skipped_courses = mss.dump_courses_to_neo4j(
             graph, override_cache=options['override']
         )
 
-        if not successful_courses and not unsuccessful_courses:
+        log.info(
+            "%d courses submitted for export to neo4j. %d courses skipped.",
+            len(submitted_courses),
+            len(skipped_courses),
+        )
+
+        if not submitted_courses:
             print("No courses exported to neo4j at all!")
             return
 
-        if successful_courses:
+        if submitted_courses:
             print(
-                "These courses exported to neo4j successfully:\n\t" +
-                "\n\t".join(successful_courses)
+                "These courses were submitted for export to neo4j successfully:\n\t" +
+                "\n\t".join(submitted_courses)
             )
-        else:
-            print("No courses exported to neo4j successfully.")
-
-        if unsuccessful_courses:
-            print(
-                "These courses did not export to neo4j successfully:\n\t" +
-                "\n\t".join(unsuccessful_courses)
-            )
-        else:
-            print("All courses exported to neo4j successfully.")

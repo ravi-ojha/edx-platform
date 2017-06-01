@@ -223,7 +223,7 @@ class TestModuleStoreSerializer(TestDumpToNeo4jCommandBase):
     def setUpClass(cls):
         """Any ModuleStore course/content operations can go here."""
         super(TestModuleStoreSerializer, cls).setUpClass()
-        cls.mss = ModuleStoreSerializer()
+        cls.mss = ModuleStoreSerializer.create()
 
     def test_serialize_item(self):
         """
@@ -360,7 +360,7 @@ class TestModuleStoreSerializer(TestDumpToNeo4jCommandBase):
         mock_graph = MockGraph()
         mock_selector_class.return_value = MockNodeSelector(mock_graph)
 
-        successful, unsuccessful = self.mss.dump_courses_to_neo4j(mock_graph)
+        submitted, skipped = self.mss.dump_courses_to_neo4j(mock_graph)
 
         self.assertCourseDump(
             mock_graph,
@@ -373,9 +373,7 @@ class TestModuleStoreSerializer(TestDumpToNeo4jCommandBase):
         # 2 nodes and no relationships from the second
 
         self.assertEqual(len(mock_graph.nodes), 11)
-
-        self.assertEqual(len(unsuccessful), 0)
-        self.assertItemsEqual(successful, self.course_strings)
+        self.assertItemsEqual(submitted, self.course_strings)
 
     @mock.patch('openedx.core.djangoapps.coursegraph.management.commands.dump_to_neo4j.NodeSelector')
     def test_dump_to_neo4j_rollback(self, mock_selector_class):
@@ -386,7 +384,7 @@ class TestModuleStoreSerializer(TestDumpToNeo4jCommandBase):
         mock_graph = MockGraph(transaction_errors=True)
         mock_selector_class.return_value = MockNodeSelector(mock_graph)
 
-        successful, unsuccessful = self.mss.dump_courses_to_neo4j(mock_graph)
+        submitted, skipped = self.mss.dump_courses_to_neo4j(mock_graph)
 
         self.assertCourseDump(
             mock_graph,
@@ -395,8 +393,7 @@ class TestModuleStoreSerializer(TestDumpToNeo4jCommandBase):
             number_rollbacks=2,
         )
 
-        self.assertEqual(len(successful), 0)
-        self.assertItemsEqual(unsuccessful, self.course_strings)
+        self.assertItemsEqual(submitted, self.course_strings)
 
     @mock.patch('openedx.core.djangoapps.coursegraph.management.commands.dump_to_neo4j.NodeSelector')
     @ddt.data((True, 2), (False, 0))
@@ -416,10 +413,10 @@ class TestModuleStoreSerializer(TestDumpToNeo4jCommandBase):
 
         # when run the second time, only dump courses if the cache override
         # is enabled
-        successful, unsuccessful = self.mss.dump_courses_to_neo4j(
+        submitted, __ = self.mss.dump_courses_to_neo4j(
             mock_graph, override_cache=override_cache
         )
-        self.assertEqual(len(successful + unsuccessful), expected_number_courses)
+        self.assertEqual(len(submitted), expected_number_courses)
 
     @mock.patch('openedx.core.djangoapps.coursegraph.management.commands.dump_to_neo4j.NodeSelector')
     def test_dump_to_neo4j_published(self, mock_selector_class):
@@ -431,17 +428,16 @@ class TestModuleStoreSerializer(TestDumpToNeo4jCommandBase):
         mock_selector_class.return_value = MockNodeSelector(mock_graph)
 
         # run once to warm the cache
-        successful, unsuccessful = self.mss.dump_courses_to_neo4j(mock_graph)
-        self.assertEqual(len(successful + unsuccessful), len(self.course_strings))
+        submitted, skipped = self.mss.dump_courses_to_neo4j(mock_graph)
+        self.assertEqual(len(submitted), len(self.course_strings))
 
         # simulate one of the courses being published
         listen_for_course_publish(None, self.course.id)
 
         # make sure only the published course was dumped
-        successful, unsuccessful = self.mss.dump_courses_to_neo4j(mock_graph)
-        self.assertEqual(len(unsuccessful), 0)
-        self.assertEqual(len(successful), 1)
-        self.assertEqual(successful[0], unicode(self.course.id))
+        submitted, __ = self.mss.dump_courses_to_neo4j(mock_graph)
+        self.assertEqual(len(submitted), 1)
+        self.assertEqual(submitted[0], unicode(self.course.id))
 
     @ddt.data(
         (six.text_type(datetime(2016, 3, 30)), six.text_type(datetime(2016, 3, 31)), True),
@@ -456,7 +452,7 @@ class TestModuleStoreSerializer(TestDumpToNeo4jCommandBase):
         Tests whether a course should be dumped given the last time it was
         dumped and the last time it was published.
         """
-        mss = ModuleStoreSerializer()
+        mss = ModuleStoreSerializer.create()
         mss.get_command_last_run = lambda course_key, graph: last_command_run
         mss.get_course_last_published = lambda course_key: last_course_published
         mock_course_key = mock.Mock
