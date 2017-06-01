@@ -13,11 +13,11 @@ from flaky import flaky
 from nose.plugins.attrib import attr
 
 from common.test.acceptance.fixtures.course import CourseFixture, CourseUpdateDesc, XBlockFixtureDesc
+from common.test.acceptance.pages.common.auto_auth import AutoAuthPage
 from common.test.acceptance.pages.common.logout import LogoutPage
 from common.test.acceptance.pages.common.utils import enroll_user_track
 from common.test.acceptance.pages.lms import BASE_URL
 from common.test.acceptance.pages.lms.account_settings import AccountSettingsPage
-from common.test.acceptance.pages.lms.auto_auth import AutoAuthPage
 from common.test.acceptance.pages.lms.course_home import CourseHomePage
 from common.test.acceptance.pages.lms.course_info import CourseInfoPage
 from common.test.acceptance.pages.lms.course_wiki import (
@@ -140,7 +140,6 @@ class LoginFromCombinedPageTest(UniqueCourseTest):
         self.login_page.visit().toggle_form()
         self.assertEqual(self.login_page.current_form, "register")
 
-    @flaky  # ECOM-1165
     def test_password_reset_success(self):
         # Create a user account
         email, password = self._create_unique_user()  # pylint: disable=unused-variable
@@ -565,6 +564,7 @@ class CourseWikiTest(UniqueCourseTest):
         self.course_wiki_edit_page.wait_for_page()
 
     @attr(shard=1)
+    @flaky  # EDUCATOR-511
     def test_edit_course_wiki(self):
         """
         Wiki page by default is editable for students.
