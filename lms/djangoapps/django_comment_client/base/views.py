@@ -51,6 +51,7 @@ import lms.lib.comment_client as cc
 log = logging.getLogger(__name__)
 
 TRACKING_MAX_FORUM_BODY = 2000
+TRACKING_MAX_FORUM_TITLE = 50 # @@TODO what should this be?
 _EVENT_NAME_TEMPLATE = 'edx.forum.{obj_type}.{action_name}'
 
 
@@ -147,6 +148,27 @@ def track_voted_event(request, course, obj, vote_value, undo_vote=False):
         'target_username': obj.get('username'),
         'undo_vote': undo_vote,
         'vote_value': vote_value,
+    }
+    track_forum_event(request, event_name, course, obj, event_data)
+
+
+def track_viewed_event(request, course, obj, vote_value):
+    """
+    Send analytics event for a viewed thread.
+    """
+    if isinstance(obj, cc.Thread):
+        obj_type = 'thread'
+    else:
+        raise TypeError() # @@TODO What should I do here?
+    event_name = _EVENT_NAME_TEMPLATE.format(obj_type=obj_type, action_name='viewed')
+    truncated_title = (
+        obj.title if len(obj.title) <= TRACKING_MAX_FORUM_TITLE
+        else obj.title[:(TRACKING_MAX_FORUM_TITLE - 3)] + '...'
+    )
+    event_data = {
+        'title': truncated_title,
+        'team': None, # @@TODO What should go here?
+        'target_username': obj.username,
     }
     track_forum_event(request, event_name, course, obj, event_data)
 
