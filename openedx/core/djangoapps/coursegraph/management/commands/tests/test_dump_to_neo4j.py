@@ -71,7 +71,7 @@ class TestDumpToNeo4jCommandBase(SharedModuleStoreTestCase):
         Replaces the py2neo Graph object with a MockGraph; similarly replaces
         NodeSelector with MockNodeSelector.
 
-        Args:
+        Arguments:
             mock_selector_class: a mocked NodeSelector class
             mock_graph_class: a mocked Graph class
             transaction_errors: a bool for whether we should get errors
@@ -91,7 +91,7 @@ class TestDumpToNeo4jCommandBase(SharedModuleStoreTestCase):
         """
         Asserts that we have the expected number of courses, commits, and
         rollbacks after we dump the modulestore to neo4j
-        Args:
+        Arguments:
             mock_graph: a MockGraph backend
             number_of_courses: number of courses we expect to find
             number_commits: number of commits we expect against the graph
@@ -254,9 +254,15 @@ class TestModuleStoreSerializer(TestDumpToNeo4jCommandBase):
     @staticmethod
     def _extract_relationship_pairs(relationships, relationship_type):
         """
-        Helper function that takes a list of py2neo `Relationship` objects,
-        filters them by their `relationship_type`, and returns a list of
-        tuples of the locations of the Relationships' constituent nodes.
+        Extracts a list of XBlock location tuples from a list of Relationships.
+
+        Arguments:
+            relationships: list of py2neo `Relationship` objects
+            relationship_type: the type of relationship to filter `relationships`
+              by.
+        Returns:
+            List of tuples of the locations of of the relationships'
+              constituent nodes.
         """
         relationship_pairs = [
             tuple([node["location"] for node in rel.nodes()])
@@ -267,9 +273,14 @@ class TestModuleStoreSerializer(TestDumpToNeo4jCommandBase):
     @staticmethod
     def _extract_location_pair(xblock1, xblock2):
         """
-        Helper function that takes two XBlocks and returns a tuple of the
-        string representations of their locations.
-        locations.
+        Returns a tuple of locations from two XBlocks.
+
+        Arguments:
+            xblock1: an xblock
+            xblock2: also an xblock
+
+        Returns:
+            A tuple of the string representations of those XBlocks' locations.
         """
         return (unicode(xblock1.location), unicode(xblock2.location))
 

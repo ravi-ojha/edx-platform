@@ -6,7 +6,7 @@ from __future__ import unicode_literals, print_function
 
 import logging
 
-from celery.task import task
+from celery import task
 from django.core.management.base import BaseCommand
 from django.utils import six, timezone
 from opaque_keys.edx.keys import CourseKey
@@ -33,8 +33,13 @@ def method_wrapper(method, *args):
     """
     Since celery does not support using methods as background tasks, this is
     a wrapper function that can be submitted as a task instead.
-    :param method: the method that we want to run as a background task.
-    :param args: that method's arguments.
+
+    Arguments:
+        method: the method that we want to run as a background task.
+        args: that method's arguments.
+
+    Returns:
+        the method applied to the arguments
     """
     return method(*args)
 
@@ -54,11 +59,16 @@ class ModuleStoreSerializer(object):
         Sets the object's course_keys attribute from the `courses` parameter.
         If that parameter isn't furnished, loads all course_keys from the
         modulestore.
+
         Filters out course_keys in the `skip` parameter, if provided.
-        Args:
+
+        Arguments:
             courses: A list of string serializations of course keys.
                 For example, ["course-v1:org+course+run"].
             skip: Also a list of string serializations of course keys.
+
+        Returns:
+            a ModulestoreSerializer instance
         """
         if courses:
             course_keys = [CourseKey.from_string(course.strip()) for course in courses]
@@ -74,7 +84,7 @@ class ModuleStoreSerializer(object):
     @staticmethod
     def serialize_item(item):
         """
-        Args:
+        Arguments:
             item: an XBlock
 
         Returns:
@@ -116,7 +126,7 @@ class ModuleStoreSerializer(object):
     def serialize_course(self, course_id):
         """
         Serializes a course into py2neo Nodes and Relationships
-        Args:
+        Arguments:
             course_id: CourseKey of the course we want to serialize
 
         Returns:
@@ -163,7 +173,7 @@ class ModuleStoreSerializer(object):
     @staticmethod
     def coerce_types(value):
         """
-        Args:
+        Arguments:
             value: the value of an xblock's field
 
         Returns: either the value, a text version of the value, or, if the
@@ -183,7 +193,7 @@ class ModuleStoreSerializer(object):
     @staticmethod
     def add_to_transaction(neo4j_entities, transaction):
         """
-        Args:
+        Arguments:
             neo4j_entities: a list of Nodes or Relationships
             transaction: a neo4j transaction
         """
@@ -194,7 +204,7 @@ class ModuleStoreSerializer(object):
     def get_command_last_run(course_key, graph):
         """
         This information is stored on the course node of a course in neo4j
-        Args:
+        Arguments:
             course_key: a CourseKey
             graph: a py2neo Graph
 
@@ -219,7 +229,7 @@ class ModuleStoreSerializer(object):
         """
         We use the CourseStructure table to get when this course was last
         published.
-        Args:
+        Arguments:
             course_key: a CourseKey
 
         Returns: The datetime the course was last published at, converted into
@@ -238,7 +248,7 @@ class ModuleStoreSerializer(object):
         """
         Only dump the course if it's been changed since the last time it's been
         dumped.
-        Args:
+        Arguments:
             course_key: a CourseKey object.
             graph: a py2neo Graph object.
 
@@ -267,8 +277,10 @@ class ModuleStoreSerializer(object):
     def dump_course_to_neo4j(self, course_key, graph):
         """
         Serializes a course and writes it to neo4j.
-        :param course_key: course key for the course to be exported
-        :param graph: py2neo graph object
+
+        Arguments:
+            course_key: course key for the course to be exported
+            graph: py2neo graph object
         """
 
         nodes, relationships = self.serialize_course(course_key)
@@ -305,7 +317,7 @@ class ModuleStoreSerializer(object):
         """
         Method that iterates through a list of courses in a modulestore,
         serializes them, then submits tasks to write them to neo4j.
-        Args:
+        Arguments:
             graph: py2neo graph object
             override_cache: serialize the courses even if they'be been recently
                 serialized
