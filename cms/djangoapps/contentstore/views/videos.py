@@ -162,48 +162,36 @@ def validate_video_image(image_file):
         error (String or None): If there is error returns error message otherwise None.
     """
     error = None
-    image_file_width, image_file_height = get_image_dimensions(image_file)
-    image_file_aspect_ratio = abs(image_file_width / float(image_file_height) - settings.VIDEO_IMAGE_ASPECT_RATIO)
 
     if not all(hasattr(image_file, attr) for attr in ['name', 'content_type', 'size']):
-        error = _("The selected image must contain 'name', 'content_type' and 'size'.")
+        error = _('The image must have name, content type, and size information.')
     elif image_file.content_type not in settings.VIDEO_IMAGE_SUPPORTED_FILE_FORMATS.values():
-        error = _('The selected image contains unsupported image file type.')
+        error = _('This image file type is not supported. Supported file types are {supported_file_formats}.').format(
+            supported_file_formats=settings.VIDEO_IMAGE_SUPPORTED_FILE_FORMATS.keys()
+        )
     elif image_file.size > settings.VIDEO_IMAGE_SETTINGS['VIDEO_IMAGE_MAX_BYTES']:
-        error = _('The selected image must be smaller than {image_max_size}.').format(
+        error = _('This image file must be smaller than {image_max_size}.').format(
             image_max_size=settings.VIDEO_IMAGE_MAX_FILE_SIZE_MB
         )
     elif image_file.size < settings.VIDEO_IMAGE_SETTINGS['VIDEO_IMAGE_MIN_BYTES']:
-        error = _('The selected image must be larger than {image_min_size}').format(
+        error = _('This image file must be larger than {image_min_size}.').format(
             image_min_size=settings.VIDEO_IMAGE_MIN_FILE_SIZE_KB
-        )
-    elif image_file_width > settings.VIDEO_IMAGE_MAX_WIDTH or image_file_height > settings.VIDEO_IMAGE_MAX_HEIGHT:
-        error = _('The selected image size is {image_file_width}x{image_file_height}. '
-                  'The maximum allowed image size is {image_file_max_width}x{image_file_max_height}.').format(
-            image_file_width=image_file_width,
-            image_file_height=image_file_height,
-            image_file_max_width=settings.VIDEO_IMAGE_MAX_WIDTH,
-            image_file_max_height=settings.VIDEO_IMAGE_MAX_HEIGHT
-        )
-    elif image_file_width < settings.VIDEO_IMAGE_MIN_WIDTH or image_file_height < settings.VIDEO_IMAGE_MIN_HEIGHT:
-        error = _('The selected image size is {image_file_width}x{image_file_height}. '
-                  'The minimum allowed image size is {image_file_min_width}x{image_file_min_height}.').format(
-            image_file_width=image_file_width,
-            image_file_height=image_file_height,
-            image_file_min_width=settings.VIDEO_IMAGE_MIN_WIDTH,
-            image_file_min_height=settings.VIDEO_IMAGE_MIN_HEIGHT
-        )
-    elif image_file_aspect_ratio > settings.VIDEO_IMAGE_ASPECT_RATIO_ERROR_MARGIN:
-        error = _('The selected image must have aspect ratio of {video_image_aspect_ratio_text}.').format(
-            video_image_aspect_ratio_text=settings.VIDEO_IMAGE_ASPECT_RATIO_TEXT
         )
     else:
         try:
-            image_file.name.encode('ascii')
-        except UnicodeEncodeError:
-            error = _('The selected image file name {image_file_name} must contain only ASCII characters.').format(
-                image_file_name=image_file.name
+            image_file_width, image_file_height = get_image_dimensions(image_file)
+        except TypeError:
+            return _('This image file is corrupted.')
+        image_file_aspect_ratio = abs(image_file_width / float(image_file_height) - settings.VIDEO_IMAGE_ASPECT_RATIO)
+        if image_file_aspect_ratio > settings.VIDEO_IMAGE_ASPECT_RATIO_ERROR_MARGIN:
+            error = _('This image file must have an aspect ratio of {video_image_aspect_ratio_text}.').format(
+                video_image_aspect_ratio_text=settings.VIDEO_IMAGE_ASPECT_RATIO_TEXT
             )
+        else:
+            try:
+                image_file.name.encode('ascii')
+            except UnicodeEncodeError:
+                error = _('The image file name can only contain letters, numbers, hyphens (-), and underscores (_).')
     return error
 
 

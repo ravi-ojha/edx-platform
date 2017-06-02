@@ -22,7 +22,8 @@ from contentstore.views.videos import (
     KEY_EXPIRATION_IN_SECONDS,
     StatusDisplayStrings,
     convert_video_status,
-    _get_default_video_image_url
+    _get_default_video_image_url,
+    validate_video_image
 )
 from contentstore.tests.utils import CourseTestCase
 from contentstore.utils import reverse_course_url
@@ -603,6 +604,13 @@ class VideoImageTestCase(VideoUploadTestBase, CourseTestCase):
         response = self.client.post(video_image_upload_url, {})
         self.verify_error_message(response, 'No file provided for video image')
 
+    def test_invalid_image_file_info(self):
+        """
+        Test that when no file information is provided to validate_video_image, it gives proper error message.
+        """
+        error = validate_video_image({})
+        self.assertEquals(error, 'The image must have name, content type, and size information.')
+
     def test_no_video_image(self):
         """
         Test image url is set to None if no video image.
@@ -659,15 +667,23 @@ class VideoImageTestCase(VideoUploadTestBase, CourseTestCase):
         ),
         (
             {
+                'extension': '.PNG'
+            },
+            None
+        ),
+        (
+            {
                 'extension': '.tiff'
             },
-            'The selected image contains unsupported image file type.'
+            'This image file type is not supported. Supported file types are {supported_file_formats}.'.format(
+                supported_file_formats=settings.VIDEO_IMAGE_SUPPORTED_FILE_FORMATS.keys()
+            )
         ),
         (
             {
                 'size': settings.VIDEO_IMAGE_SETTINGS['VIDEO_IMAGE_MAX_BYTES'] + 10
             },
-            'The selected image must be smaller than {image_max_size}.'.format(
+            'This image file must be smaller than {image_max_size}.'.format(
                 image_max_size=settings.VIDEO_IMAGE_MAX_FILE_SIZE_MB
             )
         ),
@@ -675,60 +691,45 @@ class VideoImageTestCase(VideoUploadTestBase, CourseTestCase):
             {
                 'size': settings.VIDEO_IMAGE_SETTINGS['VIDEO_IMAGE_MIN_BYTES'] - 10
             },
-            'The selected image must be larger than {image_min_size}'.format(
+            'This image file must be larger than {image_min_size}.'.format(
                 image_min_size=settings.VIDEO_IMAGE_MIN_FILE_SIZE_KB
             )
         ),
         (
             {
-                'width': settings.VIDEO_IMAGE_MAX_WIDTH + 10,
-                'height': settings.VIDEO_IMAGE_MAX_HEIGHT
+                'width': 16,  # 16x9
+                'height': 9,
             },
-            'The selected image size is {image_file_width}x{image_file_height}. '
-            'The maximum allowed image size is {image_file_max_width}x{image_file_max_height}.'.format(
-                image_file_width=settings.VIDEO_IMAGE_MAX_WIDTH + 10,
-                image_file_height=settings.VIDEO_IMAGE_MAX_HEIGHT,
-                image_file_max_width=settings.VIDEO_IMAGE_MAX_WIDTH,
-                image_file_max_height=settings.VIDEO_IMAGE_MAX_HEIGHT
-            )
+            None
         ),
         (
             {
-                'width': settings.VIDEO_IMAGE_MAX_WIDTH,
-                'height': settings.VIDEO_IMAGE_MAX_HEIGHT + 10
+                'width': settings.VIDEO_IMAGE_MAX_WIDTH,  # 1280x720
+                'height': settings.VIDEO_IMAGE_MAX_HEIGHT,
             },
-            'The selected image size is {image_file_width}x{image_file_height}. '
-            'The maximum allowed image size is {image_file_max_width}x{image_file_max_height}.'.format(
-                image_file_width=settings.VIDEO_IMAGE_MAX_WIDTH,
-                image_file_height=settings.VIDEO_IMAGE_MAX_HEIGHT + 10,
-                image_file_max_width=settings.VIDEO_IMAGE_MAX_WIDTH,
-                image_file_max_height=settings.VIDEO_IMAGE_MAX_HEIGHT
-            )
+            None
         ),
         (
             {
-                'width': settings.VIDEO_IMAGE_MIN_WIDTH - 10,
-                'height': settings.VIDEO_IMAGE_MIN_HEIGHT
+                'width': 850,  # 16:9
+                'height': 478,
             },
-            'The selected image size is {image_file_width}x{image_file_height}. '
-            'The minimum allowed image size is {image_file_min_width}x{image_file_min_height}.'.format(
-                image_file_width=settings.VIDEO_IMAGE_MIN_WIDTH - 10,
-                image_file_height=settings.VIDEO_IMAGE_MIN_HEIGHT,
-                image_file_min_width=settings.VIDEO_IMAGE_MIN_WIDTH,
-                image_file_min_height=settings.VIDEO_IMAGE_MIN_HEIGHT
-            )
+            None
         ),
         (
             {
-                'width': settings.VIDEO_IMAGE_MIN_WIDTH,
-                'height': settings.VIDEO_IMAGE_MIN_HEIGHT - 10
+                'width': 940,  # 1.67 ratio, applicable aspect ratio margin of .01
+                'height': 560,
             },
-            'The selected image size is {image_file_width}x{image_file_height}. '
-            'The minimum allowed image size is {image_file_min_width}x{image_file_min_height}.'.format(
-                image_file_width=settings.VIDEO_IMAGE_MIN_WIDTH,
-                image_file_height=settings.VIDEO_IMAGE_MIN_HEIGHT - 10,
-                image_file_min_width=settings.VIDEO_IMAGE_MIN_WIDTH,
-                image_file_min_height=settings.VIDEO_IMAGE_MIN_HEIGHT
+            None
+        ),
+        (
+            {
+                'width': 1200,  # not 16:9
+                'height': 100,
+            },
+            'This image file must have an aspect ratio of {video_image_aspect_ratio_text}.'.format(
+                video_image_aspect_ratio_text=settings.VIDEO_IMAGE_ASPECT_RATIO_TEXT
             )
         ),
         (
@@ -736,9 +737,15 @@ class VideoImageTestCase(VideoUploadTestBase, CourseTestCase):
                 'width': settings.VIDEO_IMAGE_MIN_WIDTH + 100,
                 'height': settings.VIDEO_IMAGE_MIN_HEIGHT + 200,
             },
-            'The selected image must have aspect ratio of {video_image_aspect_ratio_text}.'.format(
+            'This image file must have an aspect ratio of {video_image_aspect_ratio_text}.'.format(
                 video_image_aspect_ratio_text=settings.VIDEO_IMAGE_ASPECT_RATIO_TEXT
             )
+        ),
+        (
+            {
+                'prefix': u'nøn-åßç¡¡',
+            },
+            'The image file name can only contain letters, numbers, hyphens (-), and underscores (_).'
         ),
     )
     @ddt.unpack
@@ -754,6 +761,7 @@ class VideoImageTestCase(VideoUploadTestBase, CourseTestCase):
         video_image_upload_url = self.get_url_for_course_key(self.course.id, {'edx_video_id': edx_video_id})
         with make_image_file(
             dimensions=(image_data.get('width', settings.VIDEO_IMAGE_MIN_WIDTH), image_data.get('height', settings.VIDEO_IMAGE_MIN_HEIGHT)),
+            prefix=image_data.get('prefix', 'videoimage'),
             extension=image_data.get('extension', '.png'),
             force_size=image_data.get('size', settings.VIDEO_IMAGE_SETTINGS['VIDEO_IMAGE_MIN_BYTES'])
         ) as image_file:
