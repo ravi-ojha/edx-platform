@@ -175,8 +175,11 @@ from openedx.core.djangolib.markup import HTML, Text
                     </div>
                % endif
             </div>
-
+        % if getattr(context_course, 'language'):
+            <div class="wrapper-dnd" lang="${context_course.language}">
+        % else:
             <div class="wrapper-dnd">
+        % endif
                 <%
                 course_locator = context_course.location
                 %>
