@@ -46,6 +46,12 @@ class CourseHomePage(CoursePage):
         courseware_page = CoursewarePage(self.browser, self.course_id)
         courseware_page.wait_for_page()
 
+    def perform_search(self, query_term):
+        search_input = self.q(css='.courseware-search-bar .course-search-input')
+        search_input.fill(query_term)
+
+        search_confirm_button = self.q(css='.courseware-search-bar .search-button')
+        search_confirm_button.click()
 
 class CourseOutlinePage(PageObject):
     """
@@ -225,3 +231,17 @@ class CourseOutlinePage(PageObject):
             promise_check_func=lambda: courseware_page.nav.is_on_section(section_title, subsection_title),
             description="Waiting for course page with section '{0}' and subsection '{1}'".format(section_title, subsection_title)
         )
+
+class CourseSearchResultsPage(CoursePage):
+    """
+    Course search page
+    """
+
+    # url_path = "courses/{course_id}/search/?query={search_query}"
+
+    def is_browser_on_page(self):
+        return self.q(css='.page-content > .search-results').present
+
+    def __init__(self, browser, course_id):
+        super(CourseSearchResultsPage, self).__init__(browser, course_id)
+        self.course_id = course_id
