@@ -12,8 +12,11 @@ from StringIO import StringIO
 import pytz
 
 from django.conf import settings
+from django.core.files.uploadedfile import UploadedFile
 from django.test.utils import override_settings
 from mock import Mock, patch
+
+from lms.envs.test import MEDIA_ROOT
 
 from edxval.api import create_profile, create_video, get_video_info, get_course_video_image_url
 
@@ -611,6 +614,19 @@ class VideoImageTestCase(VideoUploadTestBase, CourseTestCase):
         error = validate_video_image({})
         self.assertEquals(error, 'The image must have name, content type, and size information.')
 
+    def test_currupt_image_file(self):
+        """
+        Test that when corrupt file is provided to validate_video_image, it gives proper error message.
+        """
+        with open(MEDIA_ROOT + '/test-corrupt-image.png', 'w+') as file:
+            image_file = UploadedFile(
+                file,
+                content_type='image/png',
+                size=settings.VIDEO_IMAGE_SETTINGS['VIDEO_IMAGE_MIN_BYTES']
+            )
+            error = validate_video_image(image_file)
+            self.assertEquals(error, 'This image file is corrupted.')
+
     def test_no_video_image(self):
         """
         Test image url is set to None if no video image.
@@ -635,6 +651,7 @@ class VideoImageTestCase(VideoUploadTestBase, CourseTestCase):
                 self.assertEqual(response_video['course_video_image_url'], None)
 
     @ddt.data(
+        # Image file type validation
         (
             {
                 'extension': '.png'
@@ -679,6 +696,7 @@ class VideoImageTestCase(VideoUploadTestBase, CourseTestCase):
                 supported_file_formats=settings.VIDEO_IMAGE_SUPPORTED_FILE_FORMATS.keys()
             )
         ),
+        # Image file size validation
         (
             {
                 'size': settings.VIDEO_IMAGE_SETTINGS['VIDEO_IMAGE_MAX_BYTES'] + 10
@@ -695,6 +713,7 @@ class VideoImageTestCase(VideoUploadTestBase, CourseTestCase):
                 image_min_size=settings.VIDEO_IMAGE_MIN_FILE_SIZE_KB
             )
         ),
+        # Image file resolution validation
         (
             {
                 'width': 16,  # 16x9
@@ -741,6 +760,7 @@ class VideoImageTestCase(VideoUploadTestBase, CourseTestCase):
                 video_image_aspect_ratio_text=settings.VIDEO_IMAGE_ASPECT_RATIO_TEXT
             )
         ),
+        # Image file name validation
         (
             {
                 'prefix': u'nøn-åßç¡¡',

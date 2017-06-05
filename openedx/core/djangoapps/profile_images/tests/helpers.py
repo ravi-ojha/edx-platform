@@ -21,6 +21,10 @@ def make_image_file(dimensions=(320, 240), prefix='tmp', extension='.jpeg', forc
 
     The temporary file will be closed and deleted automatically upon exiting
     the `with` block.
+
+    prefix - To add prefix to random image file name, after adding will be like <custom-prefix><random-name>.png
+            otherwise by default `tmp` is added making file name tmp<random-name>.png.
+
     """
     image = Image.new('RGB', dimensions, "green")
     image_file = NamedTemporaryFile(prefix=prefix, suffix=extension)
