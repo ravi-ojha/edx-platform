@@ -6,7 +6,7 @@ from config_models.models import ConfigurationModel
 from django.db.models import IntegerField
 
 
-class GradeReportsBatchSize(ConfigurationModel):
+class GradeReportsBatchSizeSetting(ConfigurationModel):
     """
     TBD
     """
