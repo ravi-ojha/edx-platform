@@ -10,8 +10,8 @@
 
         <span class="requirements-text-sr sr">
             <%- edx.StringUtils.interpolate(
-                gettext("Recommended image resolution is 1280x720 pixels, maximum image file size should be {maxFileSize} and format must be one of {supportedImageFormats}."),
-                {maxFileSize: videoImageMaxSize.humanize, supportedImageFormats: videoImageSupportedFileFormats.humanize}
+                gettext("Recommended image resolution is {imageResolution}, maximum image file size should be {maxFileSize} and format must be one of {supportedImageFormats}."),
+                {imageResolution: videoImageResolution, maxFileSize: videoImageMaxSize.humanize, supportedImageFormats: videoImageSupportedFileFormats.humanize}
             ) %>
         </span>
     </div>

@@ -87,7 +87,7 @@ define(
                 }).sort();
                 return {
                     humanize: supportedFormats.slice(0, -1).join(', ') + ' or ' + supportedFormats.slice(-1),
-                    machine: _.values(this.videoImageSettings.supported_file_formats).sort()
+                    machine: _.values(this.videoImageSettings.supported_file_formats)
                 };
             },
 
@@ -241,6 +241,7 @@ define(
                 }
 
                 // When we had error, focused effect was not wearing off after hover out.
+                // Add focused class to all rows except rows having error.
                 if (!$(this.$el.parent()).hasClass('has-thumbnail-error')) {
                     this.$('.thumbnail-wrapper').addClass('focused');
                 }
@@ -256,6 +257,8 @@ define(
 
             setActionInfo: function(action, showText, additionalSRText) {
                 this.$('.thumbnail-action').toggle(showText);
+
+                // In case of error, we don't want to show any icon on the image.
                 if (action === 'error') {
                     HtmlUtils.setHtml(
                         this.$('.thumbnail-action .action-icon'),
@@ -276,25 +279,35 @@ define(
             },
 
             validateImageFile: function(imageFile) {
-                var self = this,
-                    errorMessage = '',
-                    fileType = imageFile.type;
+                var errorMessage = '';
 
-                if (!_.contains(self.getVideoImageSupportedFileFormats().machine, fileType)) {
-                    errorMessage = gettext(
-                        'This image file type is not supported. Supported file types are {supportedFileFormats}.'
-                    )
-                    .replace('{supportedFileFormats}', self.getVideoImageSupportedFileFormats().humanize);
-                } else if (imageFile.size > self.getVideoImageMaxSize().machine) {
-                    errorMessage = gettext(
-                        'The selected image must be smaller than {maxFileSizeInMB}.'
-                    )
-                    .replace('{maxFileSizeInMB}', self.getVideoImageMaxSize().humanize);
-                } else if (imageFile.size < self.getVideoImageMinSize().machine) {
-                    errorMessage = gettext(
-                        'The selected image must be larger than {minFileSizeInKB}.'
-                    )
-                    .replace('{minFileSizeInKB}', self.getVideoImageMinSize().humanize);
+                if (!_.contains(this.getVideoImageSupportedFileFormats().machine, imageFile.type)) {
+                    errorMessage = StringUtils.interpolate(
+                        // Translators: supportedFileFormats will be like .bmp, gif, .jpg or .png.
+                        gettext(
+                            'This image file type is not supported. Supported file types are {supportedFileFormats}.'
+                        ),
+                        {
+                            supportedFileFormats: this.getVideoImageSupportedFileFormats().humanize
+                        }
+                    );
+
+                } else if (imageFile.size > this.getVideoImageMaxSize().machine) {
+                    errorMessage = StringUtils.interpolate(
+                        // Translators: maxFileSizeInMB will be like 2 MB.
+                        gettext('The selected image must be smaller than {maxFileSizeInMB}.'),
+                        {
+                            maxFileSizeInMB: this.getVideoImageMaxSize().humanize
+                        }
+                    );
+                } else if (imageFile.size < this.getVideoImageMinSize().machine) {
+                    errorMessage = StringUtils.interpolate(
+                        // Translators: minFileSizeInKB will be like 2 KB.
+                        gettext('The selected image must be smaller than {minFileSizeInKB}.'),
+                        {
+                            minFileSizeInKB: this.getVideoImageMinSize().humanize
+                        }
+                    );
                 }
 
                 return errorMessage;
@@ -315,10 +328,12 @@ define(
                 // We need to update data attr in DOM too so as to find our element on hover.
                 $parentRowEl.attr('data-video-id', videoId);
 
+                // If an error is already present above the video element, remove it.
                 if ($thumbnailWrapperEl.length) {
                     $thumbnailWrapperEl.remove();
                 }
 
+                // Add error wrapper html before current video element row.
                 $parentRowEl.before(    // safe-lint: disable=javascript-jquery-insertion
                    HtmlUtils.ensureHtml(
                        this.thumbnailErrorTemplate({videoId: videoId, errorText: errorText})
@@ -327,50 +342,77 @@ define(
 
                 // We need to treat error and error throwing row as one.
                 // Refresh table rows to reflect error row.
-                this.refreshVideoTableRows();
+                this.refreshVideoTableRowClasses();
 
-                // We also need to treat error and error throwing row as one on hover.
+                // To treat current row and it's error row as one on hover,
+                // we add hover effect to both rows, even if it is hovered on only one row, thus, giving us
+                // the combined one row feel.
                 $('.thumbnail-error[data-video-id="' + videoId + '"]').hover(function() {
                     $('.thumbnail-error[data-video-id="' + videoId + '"]').toggleClass('blue-l5');
+                    //if ($('.thumbnail-error[data-video-id="' + videoId + '"]').hassClass('blue-l5')){
+                    //    $('.thumbnail-error[data-video-id="' + videoId + '"]').addClass('blue-l5');
+                    //} else {
+                    //    $('.thumbnail-error[data-video-id="' + videoId + '"]').removeClass('blue-l5');
+                    //}
+
                 });
             },
 
             /*
-            Refresh video table rows.
+            Refresh video table classes.
 
-            This method treats error and error throwing rows as one, for that to achieve we need to reset
+            This method treats row and their corresponsing error rows as one, for that to achieve we need to reset
             table row even odd colors.
             */
-            refreshVideoTableRows: function() {
-                var savedColor, // one color for error row and error throwing row so as to treat them one.
-                    oddColor = 'transparent',
-                    evenColor = '#f9f9f9';
+            refreshVideoTableRowClasses: function() {
+                var savedClass, // this class will be applied to the row corresponding to error row.
+                    oddRowClass = 'white',
+                    evenRowClass = 'gray-l6';
 
                 $('.view-video-uploads .assets-table .js-table-body tr').each(function(index) {
-                    var currentColor;
+                    var currentRowClass;
 
+                    // Decide current iterated row is even or odd.
                     if (index % 2 === 0) {
-                        currentColor = evenColor;
+                        currentRowClass = evenRowClass;
                     } else {
-                        currentColor = oddColor;
+                        currentRowClass = oddRowClass;
                     }
 
+                    // If the row is error row, save it's class so that it can be applied to it's corresponding row below.
                     if ($(this).hasClass('thumbnail-error-wrapper')) {
-                        savedColor = currentColor;
+                        savedClass = currentRowClass;
                     }
 
+                    // If current iterated row is the row which generated error
+                    // Apply the class same as it's corresponding error row. The class was saved.
                     if ($(this).hasClass('has-thumbnail-error')) {
-                        $(this).css('background-color', savedColor);
-                        if (currentColor === oddColor) {
-                            oddColor = evenColor;
-                            evenColor = currentColor;
+
+                        // First remove previously added classes.
+                        $(this).removeClass(evenRowClass);
+                        $(this).removeClass(oddRowClass);
+
+                        // Apply new class now.
+                        $(this).addClass(savedClass);
+
+                        // Now after the saved class, swap even odd row classes.
+                        if (currentRowClass === oddRowClass) {
+                            oddRowClass = evenRowClass;
+                            evenRowClass = currentRowClass;
                         } else {
-                            evenColor = oddColor;
-                            oddColor = currentColor;
+                            evenRowClass = oddRowClass;
+                            oddRowClass = currentRowClass;
                         }
-                        savedColor = '';
+
+                        // Reset the saved class after it has been applied.
+                        savedClass = '';
                     } else {
-                        $(this).css('background-color', currentColor);
+                        // For all simple rows, first remove classes if added
+                        $(this).removeClass(evenRowClass);
+                        $(this).removeClass(oddRowClass);
+
+                        // then add the class based on it's rows.
+                        $(this).addClass(currentRowClass);
                     }
                 });
             },

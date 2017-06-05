@@ -11,52 +11,59 @@ define(
                 VIDEO_IMAGE_MAX_WIDTH = 1280,
                 VIDEO_IMAGE_MAX_HEIGHT = 720,
                 VIDEO_IMAGE_SUPPORTED_FILE_FORMATS = {
-                    '.png': 'image/png',
-                    '.gif': 'image/gif',
                     '.bmp': 'image/bmp',
                     '.bmp2': 'image/x-ms-bmp',   // PIL gives x-ms-bmp format
+                    '.gif': 'image/gif',
                     '.jpg': 'image/jpeg',
-                    '.jpeg': 'image/jpeg'
+                    '.jpeg': 'image/jpeg',
+                    '.png': 'image/png'
                 },
-                videoImageSettings = {
-                    max_size: VIDEO_IMAGE_MAX_BYTES,
-                    min_size: VIDEO_IMAGE_MIN_BYTES,
-                    max_width: VIDEO_IMAGE_MAX_WIDTH,
-                    max_height: VIDEO_IMAGE_MAX_HEIGHT,
-                    supported_file_formats: VIDEO_IMAGE_SUPPORTED_FILE_FORMATS
-                },
-                defaultData = {
-                    client_video_id: 'foo.mp4',
-                    duration: 42,
-                    created: '2014-11-25T23:13:05',
-                    edx_video_id: 'dummy_id',
-                    status: 'uploading',
-                    thumbnail_url: null
-                },
+                videoListView,
                 videoThumbnailView,
+                $videoListEl,
+                $videoThumbnailEl,
                 createVideoListView,
                 createFakeImageFile,
-                verifyStateInfo,
-                render = function(modelData) {
-                    videoThumbnailView = new VideoThumbnailView({
-                        model: new Backbone.Model($.extend({}, defaultData, modelData)),
-                        imageUploadURL: IMAGE_UPLOAD_URL,
-                        videoImageSettings: videoImageSettings
-                    });
-                    return videoThumbnailView.render().$el;
-                };
+                verifyStateInfo;
 
-
-            createVideoListView = function(numVideos) {
+            /**
+             * Creates a list of video records.
+             *
+             * @param {Integer} numVideos       Number of video elements to create.
+             * @param {Object} modelData        Model data for video records.
+             * @param {Integer} videoViewIndex  Index of video on which videoThumbnailView would be based.
+             */
+            createVideoListView = function(numVideos, modelData, videoViewIndex) {
                 var numVideos = numVideos || 1,   // eslint-disable-line no-redeclare
+                    modelData = modelData || {},  // eslint-disable-line no-redeclare
+                    videoViewIndex = videoViewIndex || 0,// eslint-disable-line no-redeclare,
+                    defaultData = {
+                        client_video_id: 'foo.mp4',
+                        duration: 42,
+                        created: '2014-11-25T23:13:05',
+                        edx_video_id: 'dummy_id',
+                        status: 'uploading'
+                    },
                     collection = new Backbone.Collection(_.map(_.range(numVideos), function(num, index) {
-                        return new Backbone.Model(_.extend({}, defaultData, {edx_video_id: 'dummy_id_' + index}));
+                        return new Backbone.Model(
+                            _.extend({}, defaultData, {edx_video_id: 'dummy_id_' + index}, modelData)
+                        );
                     }));
-                return new PreviousVideoUploadListView({
+                videoListView = new PreviousVideoUploadListView({
                     collection: collection,
                     videoHandlerUrl: '/videos/course-v1:org.0+course_0+Run_0',
-                    videoImageSettings: videoImageSettings
+                    videoImageSettings: {
+                        max_size: VIDEO_IMAGE_MAX_BYTES,
+                        min_size: VIDEO_IMAGE_MIN_BYTES,
+                        max_width: VIDEO_IMAGE_MAX_WIDTH,
+                        max_height: VIDEO_IMAGE_MAX_HEIGHT,
+                        supported_file_formats: VIDEO_IMAGE_SUPPORTED_FILE_FORMATS
+                    }
                 });
+                $videoListEl = videoListView.render().$el;
+                videoThumbnailView = videoListView.itemViews[videoViewIndex].videoThumbnailView;
+                $videoThumbnailEl = videoThumbnailView.render().$el;
+                return videoListView;
             };
 
 
@@ -105,22 +112,21 @@ define(
                 setFixtures('<div id="page-prompt"></div><div id="page-notification"></div>');
                 TemplateHelpers.installTemplate('video-thumbnail');
                 TemplateHelpers.installTemplate('previous-video-upload-list');
+                createVideoListView();
             });
 
             it('renders as expected', function() {
-                var $el = render({});
-                expect($el.find('.thumbnail-wrapper')).toExist();
-                expect($el.find('.upload-image-input')).toExist();
+                expect($videoThumbnailEl.find('.thumbnail-wrapper')).toExist();
+                expect($videoThumbnailEl.find('.upload-image-input')).toExist();
             });
 
             it('does not show duration if not available', function() {
-                var $el = render({duration: 0});
+                createVideoListView();({duration: 0});
                 expect($el.find('.thumbnail-wrapper .video-duration')).not.toExist();
             });
 
             it('shows the duration if available', function() {
-                var $el = render({}),
-                    $duration = $el.find('.thumbnail-wrapper .video-duration');
+                var $duration = $videoThumbnailEl.find('.thumbnail-wrapper .video-duration');
                 expect($duration).toExist();
                 expect($duration.find('.duration-text-machine').text().trim()).toEqual('0:42');
                 expect($duration.find('.duration-text-human').text().trim()).toEqual('Video duration is 42 seconds');
@@ -151,8 +157,7 @@ define(
             });
 
             it('can upload image', function() {
-                var $el = render({}),
-                    $thumbnail = $el.find('.thumbnail-wrapper'),
+                var $thumbnail = $el.find('.thumbnail-wrapper'),
                     requests = AjaxHelpers.requests(this),
                     additionalSRText = videoThumbnailView.getSRText();
 
@@ -162,7 +167,7 @@ define(
                 verifyStateInfo($thumbnail, 'requirements', true, additionalSRText);
 
                 // Add image to upload queue and send POST request to upload image
-                $el.find('.upload-image-input').fileupload('add', {files: [createFakeImageFile()]});
+                $videoThumbnailEl.find('.upload-image-input').fileupload('add', {files: [createFakeImageFile()]});
 
                 verifyStateInfo($thumbnail, 'progress');
 
@@ -179,8 +184,7 @@ define(
             });
 
             it('shows error state correctly', function() {
-                var $el = render({}),
-                    $thumbnail = $el.find('.thumbnail-wrapper'),
+                var $thumbnail = $videoThumbnailEl.find('.thumbnail-wrapper'),
                     requests = AjaxHelpers.requests(this);
 
                 videoThumbnailView.chooseFile();
@@ -194,20 +198,20 @@ define(
             });
 
             it('calls readMessage with correct message', function() {
-                var successData = {
+                var errorMessage = 'This image file type is not supported. Supported file types are ' +
+                                    videoThumbnailView.getVideoImageSupportedFileFormats().humanize + '.',
+                    successData = {
                         files: [createFakeImageFile()],
                         submit: function() {}
                     },
                     failureData = {
                         jqXHR: {
                             responseText: JSON.stringify({
-                                error: 'This image file type is not supported.'
+                                error: errorMessage
                             })
                         }
                     };
 
-                // call render
-                render({});
                 spyOn(videoThumbnailView, 'readMessages');
 
                 videoThumbnailView.imageSelected({}, successData);
@@ -216,21 +220,17 @@ define(
                 expect(videoThumbnailView.readMessages).toHaveBeenCalledWith(['Video image upload completed']);
                 videoThumbnailView.imageUploadFailed({}, failureData);
                 expect(videoThumbnailView.readMessages).toHaveBeenCalledWith(
-                    ['Could not upload the video image file', 'This image file type is not supported.']
+                    ['Could not upload the video image file', errorMessage]
                 );
             });
 
             it('should show error message in case of server error', function() {
-                var videoListView = createVideoListView(),
-                    $videoListEl = videoListView.render().$el,
-                    videoThumbnailView = videoListView.itemViews[0].videoThumbnailView, // eslint-disable-line no-shadow
-                    $el = videoThumbnailView.render().$el,
-                    requests = AjaxHelpers.requests(this);
+                var requests = AjaxHelpers.requests(this);
 
                 videoThumbnailView.chooseFile();
 
                 // Add image to upload queue and send POST request to upload image
-                $el.find('.upload-image-input').fileupload('add', {files: [createFakeImageFile()]});
+                $videoThumbnailEl.find('.upload-image-input').fileupload('add', {files: [createFakeImageFile()]});
 
                 AjaxHelpers.respondWithError(requests);
 
@@ -239,95 +239,74 @@ define(
             });
 
             it('should show error message when file is smaller than minimum size', function() {
-                var errorMessage,
-                    $thumbnailErrorEl,
-                    videoListView = createVideoListView(),
-                    $videoListEl = videoListView.render().$el,
-                    videoThumbnailView = videoListView.itemViews[0].videoThumbnailView, // eslint-disable-line no-shadow
-                    $el = videoThumbnailView.render().$el;
-
                 videoThumbnailView.chooseFile();
 
                 // Add image to upload queue and send POST request to upload image
-                $el.find('.upload-image-input')
+                $videoThumbnailEl.find('.upload-image-input')
                     .fileupload('add', {files: [createFakeImageFile(VIDEO_IMAGE_MIN_BYTES - 10)]});
 
-                errorMessage = 'The selected image must be larger than ' +
-                    videoThumbnailView.getVideoImageMinSize().humanize + '.';
                 // Verify error message
-                $thumbnailErrorEl = $videoListEl.find('.thumbnail-error-wrapper');
-                expect($thumbnailErrorEl.find('.action-text').html().trim()).toEqual(errorMessage);
+                expect($videoListEl.find('.thumbnail-error-wrapper').find('.action-text').html().trim()).toEqual(
+                    'The selected image must be larger than ' +
+                    videoThumbnailView.getVideoImageMinSize().humanize + '.';
+                );
             });
 
             it('should show error message when file is larger than maximum size', function() {
-                var errorMessage,
-                    $thumbnailErrorEl,
-                    videoListView = createVideoListView(),
-                    $videoListEl = videoListView.render().$el,
-                    videoThumbnailView = videoListView.itemViews[0].videoThumbnailView, // eslint-disable-line no-shadow
-                    $el = videoThumbnailView.render().$el;
-
                 videoThumbnailView.chooseFile();
 
                 // Add image to upload queue and send POST request to upload image
-                $el.find('.upload-image-input')
+                $videoThumbnailEl.find('.upload-image-input')
                     .fileupload('add', {files: [createFakeImageFile(VIDEO_IMAGE_MAX_BYTES + 10)]});
 
-                errorMessage = 'The selected image must be smaller than ' +
-                    videoThumbnailView.getVideoImageMaxSize().humanize + '.';
                 // Verify error message
-                $thumbnailErrorEl = $videoListEl.find('.thumbnail-error-wrapper');
-                expect($thumbnailErrorEl.find('.action-text').html().trim()).toEqual(errorMessage);
+                expect($videoListEl.find('.thumbnail-error-wrapper').find('.action-text').html().trim()).toEqual(
+                    'The selected image must be smaller than ' +
+                    videoThumbnailView.getVideoImageMaxSize().humanize + '.';
+                );
             });
 
-            it('should not show error message when file is appropriate size', function() {
-                var videoListView = createVideoListView(),
-                    $videoListEl = videoListView.render().$el,
-                    videoThumbnailView = videoListView.itemViews[0].videoThumbnailView, // eslint-disable-line no-shadow
-                    $el = videoThumbnailView.render().$el;
-
+            it('should not show error message when file size is equals to minimum file size', function() {
                 videoThumbnailView.chooseFile();
 
                 // Add image to upload queue and send POST request to upload image
-                $el.find('.upload-image-input')
+                $videoThumbnailEl.find('.upload-image-input')
                     .fileupload('add', {files: [createFakeImageFile(VIDEO_IMAGE_MIN_BYTES)]});
 
                 // Verify error not present.
                 expect($videoListEl.find('.thumbnail-error-wrapper')).not.toExist();
             });
 
-            it('should show error message when file has unsupported content type', function() {
-                var errorMessage,
-                    $thumbnailErrorEl,
-                    videoListView = createVideoListView(),
-                    $videoListEl = videoListView.render().$el,
-                    videoThumbnailView = videoListView.itemViews[0].videoThumbnailView, // eslint-disable-line no-shadow
-                    $el = videoThumbnailView.render().$el;
-
+            it('should not show error message when file size is equals to maximum file size', function() {
                 videoThumbnailView.chooseFile();
 
                 // Add image to upload queue and send POST request to upload image
-                $el.find('.upload-image-input')
+                $videoThumbnailEl.find('.upload-image-input')
+                    .fileupload('add', {files: [createFakeImageFile(VIDEO_IMAGE_MAX_BYTES)]});
+
+                // Verify error not present.
+                expect($videoListEl.find('.thumbnail-error-wrapper')).not.toExist();
+            });
+
+            it('should show error message when file has unsupported content type', function() {
+                videoThumbnailView.chooseFile();
+
+                // Add image to upload queue and send POST request to upload image
+                $videoThumbnailEl.find('.upload-image-input')
                     .fileupload('add', {files: [createFakeImageFile(VIDEO_IMAGE_MIN_BYTES, 'mov/mp4')]});
 
-
-                errorMessage = 'This image file type is not supported. Supported file types are ' +
-                    videoThumbnailView.getVideoImageSupportedFileFormats().humanize + '.';
                 // Verify error message
-                $thumbnailErrorEl = $videoListEl.find('.thumbnail-error-wrapper');
-                expect($thumbnailErrorEl.find('.action-text').html().trim()).toEqual(errorMessage);
+                expect($videoListEl.find('.thumbnail-error-wrapper').find('.action-text').html().trim()).toEqual(
+                    'This image file type is not supported. Supported file types are ' +
+                    videoThumbnailView.getVideoImageSupportedFileFormats().humanize + '.';
+                );
             });
 
             it('should not show error message when file has supported content type', function() {
-                var videoListView = createVideoListView(),
-                    $videoListEl = videoListView.render().$el,
-                    videoThumbnailView = videoListView.itemViews[0].videoThumbnailView, // eslint-disable-line no-shadow
-                    $el = videoThumbnailView.render().$el;
-
                 videoThumbnailView.chooseFile();
 
                 // Add image to upload queue and send POST request to upload image
-                $el.find('.upload-image-input')
+                $videoThumbnailEl.find('.upload-image-input')
                     .fileupload('add', {files: [createFakeImageFile(VIDEO_IMAGE_MIN_BYTES)]});
 
                 // Verify error message is not present
